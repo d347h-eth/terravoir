@@ -197,19 +197,27 @@ export const start = async (): Promise<void> => {
       if (config.logUnknownApiKeys && key && _.isNull(apiKey)) {
         try {
           const dedupKey = `unknown-api-key:${key}`;
-          const set = await redis.set(dedupKey, "1", "EX", 7 * 24 * 60 * 60, "NX");
+          const details = {
+            key,
+            route: request.route.path,
+            method: request.route.method,
+            origin,
+            remoteAddress,
+            referrer: request.info.referrer,
+            userAgent: request.headers["user-agent"],
+            ts: Date.now(),
+          };
+          const set = await redis.set(
+            dedupKey,
+            JSON.stringify(details),
+            "EX",
+            7 * 24 * 60 * 60,
+            "NX"
+          );
           if (set === "OK") {
             logger.info(
               "unknown-api-key",
-              JSON.stringify({
-                key,
-                route: request.route.path,
-                method: request.route.method,
-                origin,
-                remoteAddress,
-                referrer: request.info.referrer,
-                userAgent: request.headers["user-agent"],
-              })
+              JSON.stringify(details)
             );
           }
         } catch {
