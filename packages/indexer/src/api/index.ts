@@ -18,6 +18,7 @@ import { config } from "@/config/index";
 import { getSubDomain } from "@/config/network";
 import { allJobQueues } from "@/jobs/index";
 import { ApiKeyManager } from "@/models/api-keys";
+import { redis } from "@/common/redis";
 import { RateLimitRules } from "@/models/rate-limit-rules";
 import { BlockedKeyError, BlockedRouteError } from "@/models/rate-limit-rules/errors";
 import { countApiUsageJob } from "@/jobs/metrics/count-api-usage-job";
@@ -191,6 +192,30 @@ export const start = async (): Promise<void> => {
 
       const key = request.headers["x-api-key"];
       const apiKey = await ApiKeyManager.getApiKey(key, remoteAddress, origin);
+
+      // Optionally capture unknown API keys once (deduped via Redis) for recovery
+      if (config.logUnknownApiKeys && key && _.isNull(apiKey)) {
+        try {
+          const dedupKey = `unknown-api-key:${key}`;
+          const set = await redis.set(dedupKey, "1", "EX", 7 * 24 * 60 * 60, "NX");
+          if (set === "OK") {
+            logger.info(
+              "unknown-api-key",
+              JSON.stringify({
+                key,
+                route: request.route.path,
+                method: request.route.method,
+                origin,
+                remoteAddress,
+                referrer: request.info.referrer,
+                userAgent: request.headers["user-agent"],
+              })
+            );
+          }
+        } catch {
+          // ignore logging errors
+        }
+      }
       const tier = apiKey?.tier || 0;
       let rateLimitRule;
 

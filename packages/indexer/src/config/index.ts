@@ -185,6 +185,9 @@ export const config = {
 
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
 
+  // Logging: capture unknown x-api-key values once (dedup via Redis)
+  logUnknownApiKeys: Boolean(Number(process.env.LOG_UNKNOWN_API_KEYS || 0)),
+
   // Focus a single collection end-to-end (live + backfill gating)
   focusCollectionAddress: process.env.FOCUS_COLLECTION_ADDRESS
     ? String(process.env.FOCUS_COLLECTION_ADDRESS)
