@@ -1,5 +1,10 @@
 terravoir.artgod.network {
-    reverse_proxy indexer:3000
+    reverse_proxy indexer:3000 {
+        health_uri /livez
+        health_interval 10s
+        health_timeout 2s
+        health_status 200
+    }
 }
 
 rabbitmq.terravoir.artgod.network {
