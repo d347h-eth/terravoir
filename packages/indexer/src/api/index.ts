@@ -193,49 +193,6 @@ export const start = async (): Promise<void> => {
       const key = request.headers["x-api-key"];
       const apiKey = await ApiKeyManager.getApiKey(key, remoteAddress, origin);
 
-      if (config.logUnknownApiKeys) {
-        if (key && _.isNull(apiKey)) {
-          try {
-            const dedupKey = `unknown-api-key:${key}`;
-            const details = {
-              key,
-              route: request.route.path,
-              method: request.route.method,
-              origin,
-              remoteAddress,
-              referrer: request.info.referrer,
-              userAgent: request.headers["user-agent"],
-              ts: Date.now(),
-            };
-            const set = await redis.set(
-              dedupKey,
-              JSON.stringify(details),
-              "EX",
-              7 * 24 * 60 * 60,
-              "NX"
-            );
-            if (set === "OK") {
-              logger.info("unknown-api-key", JSON.stringify(details));
-            } else {
-              logger.debug(
-                "unknown-api-key-exists",
-                JSON.stringify({ key, dedupKey })
-              );
-            }
-          } catch {
-            logger.warn(
-              "unknown-api-key-error",
-              JSON.stringify({ key, route: request.route.path })
-            );
-          }
-        } else {
-          const reason = !key ? "no-header" : "known-key";
-          logger.debug(
-            "unknown-api-key-skip",
-            JSON.stringify({ reason, route: request.route.path, method: request.route.method })
-          );
-        }
-      }
       const tier = apiKey?.tier || 0;
       let rateLimitRule;
 

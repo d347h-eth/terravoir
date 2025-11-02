@@ -185,8 +185,6 @@ export const config = {
 
   enableDebug: Boolean(Number(process.env.ENABLE_DEBUG)),
 
-  logUnknownApiKeys: Boolean(Number(process.env.LOG_UNKNOWN_API_KEYS || 1)),
-
   // Focus a single collection end-to-end (live + backfill gating)
   focusCollectionAddress: process.env.FOCUS_COLLECTION_ADDRESS
     ? String(process.env.FOCUS_COLLECTION_ADDRESS)
