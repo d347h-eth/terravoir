@@ -99,7 +99,7 @@ export const start = async (): Promise<void> => {
     }
   );
 
-  if (!process.env.LOCAL_TESTING) {
+  if (!Number(process.env.LOCAL_TESTING || 0)) {
     // Getting rate limit instance will load rate limit rules into memory
     await RateLimitRules.getInstance(true);
   }
@@ -157,7 +157,7 @@ export const start = async (): Promise<void> => {
     },
   ] as unknown as Hapi.ServerRegisterPluginObject<any>[]);
 
-  if (!process.env.LOCAL_TESTING) {
+  if (!Number(process.env.LOCAL_TESTING || 0)) {
     server.ext("onPostAuth", async (request, reply) => {
       // Set the request URL query string
       const searchParams = new URLSearchParams(request.query);
