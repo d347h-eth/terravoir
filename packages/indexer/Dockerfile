@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 FROM node:24-bookworm-slim AS builder
 
 WORKDIR /app
@@ -17,13 +18,16 @@ COPY packages/sdk/package.json ./packages/sdk/
 COPY packages/contracts/package.json ./packages/contracts/
 
 # Install all dependencies (monorepo-aware)
-RUN corepack enable && yarn install --immutable
+RUN --mount=type=cache,target=/root/.cache/yarn \
+    corepack enable && yarn install --immutable
 
 # Copy all source code for all workspaces
 COPY packages/ ./packages/
 
 # Build all workspaces from root (respects workspace links)
-RUN yarn build
+# Persist Turborepo local cache across Docker builds for faster no-op builds
+RUN --mount=type=cache,target=/app/.turbo,id=turbo-cache,sharing=locked \
+    yarn build
 
 # Production image
 FROM node:24-bookworm-slim
