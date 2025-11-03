@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:13.2
-    command: postgres -N 2000
+    command: postgres
     env_file:
       - ./postgres.env
     volumes:
