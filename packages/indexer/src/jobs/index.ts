@@ -7,6 +7,7 @@ import "@/jobs/collections-refresh";
 import "@/jobs/daily-volumes";
 import "@/jobs/events-sync";
 import "@/jobs/metrics";
+import "@/jobs/opensea-listings";
 import "@/jobs/opensea-orders";
 import "@/jobs/monitoring";
 import "@/jobs/failed-messages";
