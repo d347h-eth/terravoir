@@ -1,0 +1,16 @@
+# Redis configuration example
+# Copy to redis.conf and set a strong password.
+
+bind 0.0.0.0
+port 6379
+protected-mode yes
+
+# Require clients to authenticate with this password
+requirepass password
+
+# Persistence settings (optional; defaults are fine for this use)
+dir /data
+dbfilename dump.rdb
+save 900 1
+save 300 10
+save 60 10000
