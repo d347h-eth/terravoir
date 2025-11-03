@@ -1,8 +1,10 @@
 services:
   postgres:
     image: postgres:13.2
-    command: ["sh","-lc","exec postgres -c max_connections=$${PG_MAX_CONNECTIONS:-200}"]
+    # Use Compose project "./.env" for interpolation in "command" (see "./.env.example")
+    command: ["postgres","-c","max_connections=${PG_MAX_CONNECTIONS:-200}"]
     env_file:
+      # Use "./postgres.env.example" to setup Postgres credentials
       - ./postgres.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -12,6 +14,7 @@ services:
     image: redis:6.2.2
     command: ["redis-server","/usr/local/etc/redis/redis.conf"]
     volumes:
+      # Use "./redis.conf.example" to setup Redis password
       - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
       - redis_data:/data
     restart: unless-stopped
@@ -22,6 +25,7 @@ services:
     # Ensure we pull/run an image compatible with x86_64 hosts
     platform: linux/amd64
     env_file:
+      # Use "./rabbitmq.env.example" to setup RabbitMQ credentials
       - ./rabbitmq.env
     volumes:
       - rabbitmq_data:/bitnami/rabbitmq/mnesia
@@ -32,6 +36,7 @@ services:
       context: ..
       dockerfile: packages/indexer/Dockerfile
     env_file:
+      # Use "../packages/indexer/.env.example" to setup Indexer environment variables
       - ../packages/indexer/.env
     depends_on:
       - postgres
