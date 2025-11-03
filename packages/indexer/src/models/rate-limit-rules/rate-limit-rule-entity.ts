@@ -60,16 +60,16 @@ export class RateLimitRuleEntity {
   public static getRateLimitMessage(xApiKey: string, tier: number, maxPoints = 0, duration = 0) {
     switch (tier) {
       case -2:
-        return `This request was blocked as you have exceeded your included requests. Please upgrade your plan or contact us at support@reservoir.tools for assistance.`;
+        return `This request was blocked as you have exceeded your included requests. Please upgrade your plan or contact admin for assistance.`;
 
       case -1:
-        return `This request was blocked as an invalid API key was detected. Please check your key has be set correctly or contact us at support@reservoir.tools for assistance.`;
+        return `This request was blocked as an invalid API key was detected. Please check your key has be set correctly or contact admin for assistance.`;
 
       case 0:
         if (_.isEmpty(xApiKey)) {
-          return `This request was blocked as no API key was detected. Please check your key has be set correctly or contact us at support@reservoir.tools for assistance.`;
+          return `This request was blocked as no API key was detected. Please check your key has be set correctly or contact admin for assistance.`;
         } else {
-          return `This request was blocked as an invalid API key was detected. Please check your key has be set correctly or contact us at support@reservoir.tools for assistance.`;
+          return `This request was blocked as an invalid API key was detected. Please check your key has be set correctly or contact admin for assistance.`;
         }
 
       default:
