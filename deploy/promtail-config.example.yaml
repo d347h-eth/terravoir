@@ -44,10 +44,14 @@ scrape_configs:
       - labels:
           component:
           level:
-      # Truncate overlong entries to avoid Grafana Cloud line-size limits (256KB)
-      - replace:
-          expression: '(?s)^(.{1,240000}).*$'
-          replace: '$1'
+      # Truncate overlong entries without using large regex quantifiers (RE2 limit)
+      # If message length > 240000, cut to first 240000 chars
+      - template:
+          source: message
+          template: '{{ if gt (len .message) 240000 }}{{ substr 0 240000 .message }}{{ else }}{{ .message }}{{ end }}'
+      # Set the log line to the (possibly truncated) message field
+      - output:
+          source: message
       # Use the app-provided timestamp if present
       - timestamp:
           source: ts
