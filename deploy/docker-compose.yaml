@@ -59,6 +59,16 @@ services:
       - indexer
     restart: unless-stopped
 
+  promtail:
+    image: grafana/promtail:2.9.3
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: ["--config.file=/etc/promtail/promtail-config.yml"]
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
 volumes:
   postgres_data:
   redis_data:
