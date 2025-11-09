@@ -10,10 +10,11 @@ clients:
       password: <GC_LOKI_PASSWORD>
 
 positions:
-  filename: /tmp/positions.yaml
+  filename: /positions/positions.yaml
 
 scrape_configs:
   - job_name: docker-indexer
+    start_from_beginning: false
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
         refresh_interval: 5s
@@ -44,9 +45,12 @@ scrape_configs:
       - labels:
           component:
           level:
+      # Truncate overlong entries to avoid Grafana Cloud line-size limits (256KB)
+      - replace:
+          expression: '(?s)^(.{1,240000}).*$'
+          replace: '$1'
       # Use the app-provided timestamp if present
       - timestamp:
           source: ts
           format: 2006-01-02 15:04:05.000
           location: UTC
-
