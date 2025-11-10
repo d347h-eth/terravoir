@@ -1,11 +1,46 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
-import { getConduits, updateConduitChannel } from "../utils/seaport-conduit";
+import { refresh } from "@/utils/seaport-conduits";
+import { idb } from "@/common/db";
 
 import { describe, it, expect } from "@jest/globals";
 
-describe("Seaport Conduit", () => {
+type ConduitRecord = {
+  conduitKey: string;
+  channel: string;
+};
+
+const mapHex = (value: string) => value.toLowerCase().replace(/^0x/, "");
+
+const getConduits = async (keys: string[]): Promise<ConduitRecord[]> => {
+  if (!keys.length) {
+    return [];
+  }
+
+  const rows = await idb.manyOrNone(
+    `
+      SELECT
+        encode(conduit_key, 'hex') AS conduit_key,
+        encode(channel, 'hex') AS channel
+      FROM seaport_conduit_open_channels
+      WHERE encode(conduit_key, 'hex') IN ($/keys:list/)
+    `,
+    { keys: keys.map(mapHex) }
+  );
+
+  return rows.map((row) => ({
+    conduitKey: `0x${row.conduit_key}`,
+    channel: `0x${row.channel}`,
+  }));
+};
+
+const updateConduitChannel = async (conduit: string) => refresh(conduit.toLowerCase());
+
+const shouldRunSeaportConduitTests = process.env.RUN_SEAPORT_CONDUIT_TESTS === "true";
+const describeIfSeaportConduit = shouldRunSeaportConduitTests ? describe : describe.skip;
+
+describeIfSeaportConduit("Seaport Conduit", () => {
   it("save-conduit", async () => {
     const conduit = `0xc1167130d6a3D589dDD08c20AD69b480B30C4fbC`.toLowerCase();
     const conduitKey =
