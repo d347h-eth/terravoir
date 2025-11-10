@@ -387,6 +387,15 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             const { args } = eventData.abi.parseLog(relevantEvent.log);
 
             const orderId = args.orderHash.toLowerCase();
+            const eventParams = {
+              ...relevantEvent.baseEventParams,
+              // fall back to outer values if for some reason the relevant event misses them
+              blockHash: relevantEvent.baseEventParams.blockHash || baseEventParams.blockHash,
+              block: relevantEvent.baseEventParams.block || baseEventParams.block,
+              txHash: relevantEvent.baseEventParams.txHash || baseEventParams.txHash,
+              timestamp: relevantEvent.baseEventParams.timestamp || baseEventParams.timestamp,
+            };
+
             onChainData.fillEventsPartial.push({
               orderId,
               orderKind,
@@ -403,22 +412,18 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               orderSourceId: attributionData.orderSource?.id,
               aggregatorSourceId: attributionData.aggregatorSource?.id,
               fillSourceId: attributionData.fillSource?.id,
-              baseEventParams: {
-                ...baseEventParams,
-                // TODO: The log index is wrong (should be taken from `relevantEvent`)
-                logIndex: baseEventParams.logIndex + i,
-              },
+              baseEventParams: eventParams,
             });
 
             onChainData.fillInfos.push({
-              context: `${orderId}-${baseEventParams.txHash}-${baseEventParams.logIndex + i}`,
+              context: `${orderId}-${eventParams.txHash}-${eventParams.logIndex}`,
               orderId: orderId,
               orderSide,
               contract: collection.toLowerCase(),
               tokenId: tokenId.toString(),
               amount: amount.toString(),
               price: priceData.nativePrice,
-              timestamp: baseEventParams.timestamp,
+              timestamp: eventParams.timestamp,
               maker,
               taker,
             });
