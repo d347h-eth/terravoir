@@ -675,7 +675,7 @@ export const save = async (orderInfos: OrderInfo[]): Promise<SaveResult[]> => {
   const limit = pLimit(20);
   await Promise.all(orderInfos.map((orderInfo) => limit(() => handleOrder(orderInfo))));
 
-  logger.info("sudoswap-v2-debug", JSON.stringify(results));
+  // logger.info("sudoswap-v2-debug", JSON.stringify(results));
 
   if (orderValues.length) {
     const columns = new pgp.helpers.ColumnSet(

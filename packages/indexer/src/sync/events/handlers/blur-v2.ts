@@ -87,20 +87,20 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         };
 
         // Debug: log the actual structure we received
-        logger.debug(
-          "blur-v2-handler",
-          JSON.stringify({
-            topic: "trace-structure-debug",
-            txHash,
-            hasHashProp: "hash" in (txTrace as any),
-            hasCallsProp: "calls" in (txTrace as any),
-            hasResultProp: "result" in (txTrace as any),
-            hasToProp: "to" in (txTrace as any),
-            hasInputProp: "input" in (txTrace as any),
-            topLevelKeys: Object.keys(txTrace as any).sort(),
-            callsType: Array.isArray((txTrace as any).calls) ? "array" : typeof (txTrace as any).calls,
-          })
-        );
+        // logger.debug(
+        //   "blur-v2-handler",
+        //   JSON.stringify({
+        //     topic: "trace-structure-debug",
+        //     txHash,
+        //     hasHashProp: "hash" in (txTrace as any),
+        //     hasCallsProp: "calls" in (txTrace as any),
+        //     hasResultProp: "result" in (txTrace as any),
+        //     hasToProp: "to" in (txTrace as any),
+        //     hasInputProp: "input" in (txTrace as any),
+        //     topLevelKeys: Object.keys(txTrace as any).sort(),
+        //     callsType: Array.isArray((txTrace as any).calls) ? "array" : typeof (txTrace as any).calls,
+        //   })
+        // );
 
         // txTrace can have two shapes:
         // 1. Direct from RPC: { from, to, input, calls: [...], ... }
@@ -135,17 +135,17 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const rootTrace = (sanitizedTrace as any).result || sanitizedTrace;
 
         // Debug: log what we extracted
-        logger.debug(
-          "blur-v2-handler",
-          JSON.stringify({
-            topic: "trace-extracted-debug",
-            txHash,
-            rootTraceTo: rootTrace.to,
-            rootTraceInput: rootTrace.input?.slice(0, 20),
-            rootTraceHasCalls: !!rootTrace.calls,
-            rootTraceCallsLength: rootTrace.calls?.length,
-          })
-        );
+        // logger.debug(
+        //   "blur-v2-handler",
+        //   JSON.stringify({
+        //     topic: "trace-extracted-debug",
+        //     txHash,
+        //     rootTraceTo: rootTrace.to,
+        //     rootTraceInput: rootTrace.input?.slice(0, 20),
+        //     rootTraceHasCalls: !!rootTrace.calls,
+        //     rootTraceCallsLength: rootTrace.calls?.length,
+        //   })
+        // );
 
         let executeCallTrace: any;
 
@@ -165,10 +165,10 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           (rootTo === exchangeAddress || rootFrom === exchangeAddress)
         ) {
           executeCallTrace = rootTrace;
-          logger.info(
-            "blur-v2-handler",
-            JSON.stringify({ topic: "found-at-root", txHash, matchedVia: rootTo === exchangeAddress ? "to" : "from" })
-          );
+          // logger.info(
+          //   "blur-v2-handler",
+          //   JSON.stringify({ topic: "found-at-root", txHash, matchedVia: rootTo === exchangeAddress ? "to" : "from" })
+          // );
         } else if (rootTrace.to || rootTrace.input) {
           // Log why root check didn't match (only if trace has data)
           logger.debug(
