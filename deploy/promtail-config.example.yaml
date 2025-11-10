@@ -25,6 +25,9 @@ scrape_configs:
       # Set a static label for service
       - source_labels: [__meta_docker_container_label_com_docker_compose_service]
         target_label: service
+      # Also provide service_name for consistency with some dashboards
+      - source_labels: [__meta_docker_container_label_com_docker_compose_service]
+        target_label: service_name
       # Point promtail at the container JSON log file
       - source_labels: [__meta_docker_container_id]
         target_label: __path__
@@ -40,19 +43,18 @@ scrape_configs:
             level: level
             message: message
             ts: timestamp
-      # Promote parsed fields to labels
-      - labels:
-          component:
-          level:
-      # Truncate overlong entries without using large regex quantifiers (RE2 limit)
-      # If message length > 240000, cut to first 240000 chars
+      # Truncate overlong entries using Go template (no regex). `.Value` is the current field value.
       - template:
           source: message
-          template: '{{ if gt (len .message) 240000 }}{{ substr 0 240000 .message }}{{ else }}{{ .message }}{{ end }}'
+          template: '{{ .Value | trunc 240000 }}'
       # Set the log line to the (possibly truncated) message field
       - output:
           source: message
-      # Use the app-provided timestamp if present
+      # Promote parsed fields to labels (after output)
+      - labels:
+          component:
+          level:
+      # Use the app-provided timestamp if present (comment this block on first run to avoid "timestamp too old")
       - timestamp:
           source: ts
           format: 2006-01-02 15:04:05.000
