@@ -19,10 +19,10 @@ describe("External Cosign", () => {
       endpoint: "http://localhost:8082",
       apiKey: cosignAPIKey,
     };
-    await externalCosign.upsertExternalCosignKey(externalCosigKey, operatorKey);
+    await externalCosign.upsertExternalCosigner(externalCosigKey, operatorKey);
     let verifyCatched = false;
     try {
-      await externalCosign.upsertExternalCosignKey(
+      await externalCosign.upsertExternalCosigner(
         {
           ...externalCosigKey,
         },
@@ -32,7 +32,7 @@ describe("External Cosign", () => {
       verifyCatched = true;
     }
 
-    const externalCosigKeyDb = await externalCosign.getExternalCosignKey(cosigner);
+    const externalCosigKeyDb = await externalCosign.getExternalCosigner(cosigner);
     const typedData = {
       domain: {
         name: "PaymentProcessor",
@@ -77,7 +77,7 @@ describe("External Cosign", () => {
         masterNonce: "0",
       },
     };
-    const signature = await externalCosign.signTypedDataWithCosign(cosigner, typedData);
+    const signature = await externalCosign.signTypedData(cosigner, typedData);
     const recoveredSigner = verifyTypedData(
       typedData.domain,
       typedData.types,

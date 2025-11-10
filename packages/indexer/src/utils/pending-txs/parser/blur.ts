@@ -46,41 +46,68 @@ export const parseTokensFromCalldata = async (calldata: string): Promise<Pending
     // Blend
 
     const blendIface = new Interface(BlendAbi);
-    const { name: methodName, args } = blendIface.parseTransaction({
-      data: calldata,
-    });
-    if (
-      ["buyToBorrow", "buyToBorrowV2", "buyToBorrowETH", "buyToBorrowV2ETH"].includes(methodName)
-    ) {
-      const { offer, execution } = args;
+    const blendV2Iface = new Interface([
+      "function buyToBorrowV2((address lender,address collection,uint256 totalAmount,uint256 minAmount,uint256 maxAmount,uint256 auctionDuration,uint256 salt,uint256 expirationTime,uint256 rate,address oracle) offer, bytes signature, uint256 loanAmount, ((address trader,address collection,bytes32 listingsRoot,uint256 numberOfListings,uint256 expirationTime,uint8 assetType,(address recipient,uint16 rate) makerFee,uint256 salt) order,(uint256 index,uint256 tokenId,uint256 amount,uint256 price) listing,bytes32[] proof,bytes signature,bytes oracleSignature) execution)",
+      "function buyToBorrowV2ETH((address lender,address collection,uint256 totalAmount,uint256 minAmount,uint256 maxAmount,uint256 auctionDuration,uint256 salt,uint256 expirationTime,uint256 rate,address oracle) offer, bytes signature, uint256 loanAmount, ((address trader,address collection,bytes32 listingsRoot,uint256 numberOfListings,uint256 expirationTime,uint8 assetType,(address recipient,uint16 rate) makerFee,uint256 salt) order,(uint256 index,uint256 tokenId,uint256 amount,uint256 price) listing,bytes32[] proof,bytes signature,bytes oracleSignature) execution)",
+    ]);
 
-      parsedTokens.push({
-        contract: offer.collection.toLowerCase(),
-        tokenId: execution.listing
-          ? execution.listing.tokenId.toString()
-          : execution.makerOrder.order.tokenId.toString(),
-      });
-    } else if (["buyLocked", "buyLockedETH"].includes(methodName)) {
-      const { lien } = args;
+    let methodName: string | undefined;
+    let args: any;
 
-      parsedTokens.push({
-        contract: lien.collection.toLowerCase(),
-        tokenId: lien.tokenId.toString(),
+    try {
+      const parsedBlendCall = blendIface.parseTransaction({
+        data: calldata,
       });
-    } else if (["borrow"].includes(methodName)) {
-      const { offer, collateralTokenId } = args;
+      methodName = parsedBlendCall.name;
+      args = parsedBlendCall.args;
+    } catch {
+      try {
+        const parsedBlendV2Call = blendV2Iface.parseTransaction({
+          data: calldata,
+        });
+        methodName = parsedBlendV2Call.name;
+        args = parsedBlendV2Call.args;
+      } catch {
+        // Skip errors
+      }
+    }
 
-      parsedTokens.push({
-        contract: offer.collection.toLowerCase(),
-        tokenId: collateralTokenId.toString(),
-      });
-    } else if (["repay", "takeBid", "takeBidV2"].includes(methodName)) {
-      const { lien } = args;
+    if (methodName && args) {
+      if (
+        ["buyToBorrow", "buyToBorrowV2", "buyToBorrowETH", "buyToBorrowV2ETH"].includes(
+          methodName
+        )
+      ) {
+        const { offer, execution } = args;
 
-      parsedTokens.push({
-        contract: lien.collection.toLowerCase(),
-        tokenId: lien.tokenId.toString(),
-      });
+        parsedTokens.push({
+          contract: offer.collection.toLowerCase(),
+          tokenId: execution.listing
+            ? execution.listing.tokenId.toString()
+            : execution.makerOrder.order.tokenId.toString(),
+        });
+      } else if (["buyLocked", "buyLockedETH"].includes(methodName)) {
+        const { lien } = args;
+
+        parsedTokens.push({
+          contract: lien.collection.toLowerCase(),
+          tokenId: lien.tokenId.toString(),
+        });
+      } else if (["borrow"].includes(methodName)) {
+        const { offer, collateralTokenId } = args;
+
+        parsedTokens.push({
+          contract: offer.collection.toLowerCase(),
+          tokenId: collateralTokenId.toString(),
+        });
+      } else if (["repay", "takeBid", "takeBidV2"].includes(methodName)) {
+        const { lien } = args;
+
+        parsedTokens.push({
+          contract: lien.collection.toLowerCase(),
+          tokenId: lien.tokenId.toString(),
+        });
+      }
     }
   } catch {
     // Skip errors

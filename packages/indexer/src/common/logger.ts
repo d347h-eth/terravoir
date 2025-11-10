@@ -4,18 +4,25 @@ import { getServiceName } from "@/config/service";
 import { networkInterfaces } from "os";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const nets: any = networkInterfaces();
+let nets: any;
+try {
+  nets = networkInterfaces();
+} catch {
+  nets = undefined;
+}
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const results: any = {};
 
-for (const name of Object.keys(nets)) {
-  for (const net of nets[name]) {
-    // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
-    if (net.family === "IPv4" && !net.internal) {
-      if (!results[name]) {
-        results[name] = [];
+if (nets) {
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] ?? []) {
+      // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+      if (net.family === "IPv4" && !net.internal) {
+        if (!results[name]) {
+          results[name] = [];
+        }
+        results[name].push(net.address);
       }
-      results[name].push(net.address);
     }
   }
 }
