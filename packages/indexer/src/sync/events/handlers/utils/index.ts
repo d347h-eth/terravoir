@@ -8,6 +8,7 @@ import {
   assignMintCommentToFillEvents,
   assignSourceToFillEvents,
 } from "@/events-sync/handlers/utils/fills";
+export { assignMintCommentToFillEvents } from "@/events-sync/handlers/utils/fills";
 import { BaseEventParams } from "@/events-sync/parser";
 import * as es from "@/events-sync/storage";
 import * as pendingTxs from "@/utils/pending-txs";

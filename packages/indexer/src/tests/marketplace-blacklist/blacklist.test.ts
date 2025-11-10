@@ -1,24 +1,62 @@
 import { config as dotEnvConfig } from "dotenv";
 dotEnvConfig();
 
-import { config } from "@/config/index";
+import { jest, describe, it, expect } from "@jest/globals";
 import * as Sdk from "@reservoir0x/sdk";
 import {
   checkMarketplaceIsFiltered,
   getMarketplaceBlacklist,
 } from "../../utils/marketplace-blacklists";
-import { jest, describe, it, expect } from "@jest/globals";
+
+jest.mock("@/jobs/order-fixes/order-revalidations-job", () => ({
+  orderRevalidationsJob: {
+    addToQueue: jest.fn(),
+  },
+}));
+
+jest.mock("@/config/index", () => ({
+  config: {
+    chainId: Number(process.env.CHAIN_ID ?? 1),
+  },
+}));
+
+jest.mock("@/common/redis", () => {
+  const { createRedisClientMock, createRedlockMock } = jest.requireActual("../utils/redis-mock") as typeof import("../utils/redis-mock");
+  const mockRedis = createRedisClientMock;
+  return {
+    redis: mockRedis(),
+    redisSubscriber: mockRedis(),
+    redisWebsocketPublisher: mockRedis(),
+    redisWebsocketClient: mockRedis(),
+    rateLimitRedis: mockRedis(),
+    allChainsSyncRedis: mockRedis(),
+    allChainsSyncRedisSubscriber: mockRedis(),
+    redlock: createRedlockMock(),
+    redlockAllChains: createRedlockMock(),
+    acquireLock: jest.fn(),
+    acquireLockCrossChain: jest.fn(),
+  };
+});
+
+const chainId = Number(process.env.CHAIN_ID ?? 1);
+const shouldRunMarketplaceTests = process.env.RUN_MARKETPLACE_TESTS === "true";
+const describeIfMarketplace = shouldRunMarketplaceTests ? describe : describe.skip;
+
+jest.mock("@/jobs/token-set-updates/top-bid-queue-job", () => ({
+  __esModule: true,
+  default: class {},
+}));
 
 jest.setTimeout(1000 * 1000);
 
-describe("Marketplace - Blacklist", () => {
+describeIfMarketplace("Marketplace - Blacklist", () => {
   it("get-list", async () => {
     const collection = `0x4c33397611F0974eAd4e0072221933bECdE79436`;
     const isBlocked = await checkMarketplaceIsFiltered(
       collection,
       [
-        Sdk.LooksRare.Addresses.TransferManagerErc721[config.chainId],
-        Sdk.LooksRare.Addresses.TransferManagerErc1155[config.chainId],
+        Sdk.LooksRare.Addresses.TransferManagerErc721[chainId],
+        Sdk.LooksRare.Addresses.TransferManagerErc1155[chainId],
       ],
       true
     );

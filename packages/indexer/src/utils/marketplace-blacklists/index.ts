@@ -146,7 +146,7 @@ export const isBlockedByCustomLogic = async (
   return Boolean(Number(cache));
 };
 
-const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
+export const getMarketplaceBlacklist = async (contract: string): Promise<string[]> => {
   const iface = new Interface([
     "function filteredOperators(address registrant) external view returns (address[])",
   ]);

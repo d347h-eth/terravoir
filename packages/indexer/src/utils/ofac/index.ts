@@ -154,4 +154,6 @@ const OFAC_LIST: { [address: string]: boolean } = {
   "0x16b7f92cdfc9e1aaf30fc7af8914d539b5340a55": true,
 };
 
+export const updateSNDList = async () => Object.keys(OFAC_LIST);
+
 export const checkAddressIsBlockedByOFAC = async (address: string) => Boolean(OFAC_LIST[address]);
