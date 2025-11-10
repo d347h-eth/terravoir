@@ -91,6 +91,66 @@ export const fetchTransaction = async (txHash: string) => {
   return saveTransaction(normalized);
 };
 
+const normalizeHexValue = (value?: string | null) => {
+  if (typeof value !== "string" || !value.length) {
+    return "0x";
+  }
+
+  const prefixed = value.startsWith("0x") || value.startsWith("0X") ? value : `0x${value}`;
+  return prefixed.toLowerCase();
+};
+
+const sanitizeCallTraceNode = (node: CallTrace): CallTrace => {
+  const sanitized: CallTrace = {
+    ...node,
+    from: node.from?.toLowerCase?.() ?? AddressZero,
+    to: node.to?.toLowerCase?.() ?? AddressZero,
+    input: normalizeHexValue(node.input),
+    output: normalizeHexValue(node.output),
+    gas: normalizeHexValue(node.gas),
+    gasUsed: normalizeHexValue(node.gasUsed),
+  };
+
+  if (Array.isArray(node.calls) && node.calls.length) {
+    sanitized.calls = node.calls
+      .filter((call): call is CallTrace => Boolean(call))
+      .map((call) => sanitizeCallTraceNode(call));
+  } else {
+    delete sanitized.calls;
+  }
+
+  return sanitized;
+};
+
+export const getTraceCallRoot = (calls?: CallTrace | CallTrace[] | null) => {
+  if (!calls) {
+    return undefined;
+  }
+
+  if (!Array.isArray(calls)) {
+    return sanitizeCallTraceNode(calls);
+  }
+
+  const sanitizedChildren = calls
+    .filter((call): call is CallTrace => Boolean(call))
+    .map((call) => sanitizeCallTraceNode(call));
+
+  if (!sanitizedChildren.length) {
+    return undefined;
+  }
+
+  return {
+    type: "call",
+    from: sanitizedChildren[0].from ?? AddressZero,
+    to: sanitizedChildren[0].to ?? AddressZero,
+    input: "0x",
+    output: "0x",
+    gas: "0x0",
+    gasUsed: "0x0",
+    calls: sanitizedChildren,
+  } as CallTrace;
+};
+
 export const fetchTransactionTraces = async (txHashes: string[], provider?: JsonRpcProvider) => {
   // Some traces might already exist
   const existingTraces = await getTransactionTraces(txHashes);
