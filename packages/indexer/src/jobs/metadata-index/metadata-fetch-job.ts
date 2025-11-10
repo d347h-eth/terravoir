@@ -50,20 +50,20 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
       return;
     }
 
-    logger.log(
-      config.debugMetadataIndexingCollections.includes(payload.data.collection) ? "info" : "debug",
-      this.queueName,
-      JSON.stringify({
-        topic: "tokenMetadataIndexing",
-        message: `Start. collection=${payload.data.collection}, tokenId=${
-          payload.kind === "single-token" ? payload.data.tokenId : ""
-        }, context=${payload.context}`,
-        payload,
-        debugMetadataIndexingCollection: config.debugMetadataIndexingCollections.includes(
-          payload.data.collection
-        ),
-      })
-    );
+    // logger.log(
+    //   config.debugMetadataIndexingCollections.includes(payload.data.collection) ? "info" : "debug",
+    //   this.queueName,
+    //   JSON.stringify({
+    //     topic: "tokenMetadataIndexing",
+    //     message: `Start. collection=${payload.data.collection}, tokenId=${
+    //       payload.kind === "single-token" ? payload.data.tokenId : ""
+    //     }, context=${payload.context}`,
+    //     payload,
+    //     debugMetadataIndexingCollection: config.debugMetadataIndexingCollections.includes(
+    //       payload.data.collection
+    //     ),
+    //   })
+    // );
 
     const { kind, data } = payload;
 
@@ -232,8 +232,31 @@ export default class MetadataIndexFetchJob extends AbstractRabbitMqJobHandler {
     prioritized = false,
     delayInSeconds = 0
   ) {
+    // Focus-mode: skip enqueue for non-focus collections/contracts to reduce noise upstream
+    let filtered = metadataIndexInfos;
+    if (config.focusCollectionAddress) {
+      const focus = config.focusCollectionAddress.toLowerCase();
+      const inferContractFromCollection = (id?: string) =>
+        id && id.startsWith("0x") && id.length >= 42 ? id.slice(0, 42) : undefined;
+
+      filtered = metadataIndexInfos.filter((info) => {
+        if (info.kind === "single-token") {
+          const c = info.data.contract?.toLowerCase?.();
+          if (c) return c === focus;
+          const colC = inferContractFromCollection(info.data.collection?.toLowerCase?.());
+          return !colC || colC === focus;
+        } else {
+          const colC = inferContractFromCollection(info.data.collection?.toLowerCase?.());
+          return !colC || colC === focus;
+        }
+      });
+      if (filtered.length === 0) {
+        return;
+      }
+    }
+
     await this.sendBatch(
-      metadataIndexInfos.map((metadataIndexInfo) => ({
+      filtered.map((metadataIndexInfo) => ({
         payload: metadataIndexInfo,
         delay: delayInSeconds * 1000,
         priority: prioritized ? 0 : 0,
