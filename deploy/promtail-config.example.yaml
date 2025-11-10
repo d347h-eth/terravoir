@@ -38,6 +38,7 @@ scrape_configs:
       - docker: {}
       # Parse the app's JSON log
       - json:
+          # drop_malformed: true
           expressions:
             component: component
             level: level
@@ -46,10 +47,17 @@ scrape_configs:
       # Truncate overlong entries using Go template (no regex). `.Value` is the current field value.
       - template:
           source: message
-          template: '{{ .Value | trunc 240000 }}'
+          template: '{{ if gt (len .Value) 240000 }}{{ substr 0 240000 .Value }}{{ else }}{{ .Value }}{{ end }}'
       # Set the log line to the (possibly truncated) message field
       - output:
           source: message
+      # Optional safety: if somehow still too big after truncation, drop it (prevents 400s)
+      # - template:
+      #     source: too_big
+      #     template: '{{ if gt (len .message) 262000 }}1{{ else }}0{{ end }}'
+      # - drop:
+      #     source: too_big
+      #     expression: '^1$'
       # Promote parsed fields to labels (after output)
       - labels:
           component:
