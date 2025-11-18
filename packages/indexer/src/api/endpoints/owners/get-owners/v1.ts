@@ -6,6 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 
 const version = "v1";
@@ -166,32 +167,68 @@ export const getOwnersV1Options: RouteOptions = {
     }
 
     try {
-      const baseQuery = `
-        WITH x AS (
+      const balancesAlias = config.focusCollectionAddress ? "owner_nft_balances" : "nft_balances";
+      const aliasify = (value: string) =>
+        config.focusCollectionAddress && value ? value.replace(/nft_balances/g, balancesAlias) : value;
+
+      const attributesJoinWithAlias = aliasify(attributesJoin);
+      const nftBalancesJoinWithAlias = aliasify(nftBalancesJoin);
+      const nftBalancesFilterWithAlias = aliasify(nftBalancesFilter);
+
+      const withClauses: string[] = [];
+      if (config.focusCollectionAddress) {
+        (query as any).focusContract = toBuffer(config.focusCollectionAddress);
+        withClauses.push(`
+          owner_nft_balances AS (
+            SELECT contract, token_id, owner, amount
+            FROM nft_balances
+            WHERE amount > 0
+            UNION ALL
+            SELECT $/focusContract/ AS contract,
+                   token_id,
+                   owner,
+                   1::NUMERIC AS amount
+            FROM focus_owner_snapshots
+            WHERE contract = $/focusContract/
+          )
+        `);
+      }
+
+      const balancesWhere = nftBalancesFilterWithAlias
+        ? `${nftBalancesFilterWithAlias} AND `
+        : "";
+      const tokenFilterClause = tokensFilter ? `${tokensFilter} AND ` : "";
+
+      withClauses.push(`
+        x AS (
           SELECT owner, SUM(amount) AS token_count
-          FROM nft_balances
-          ${attributesJoin}
-          ${nftBalancesJoin}
-          WHERE ${nftBalancesFilter + (nftBalancesFilter && ` AND`)} amount > 0
+          FROM ${balancesAlias}
+          ${attributesJoinWithAlias}
+          ${nftBalancesJoinWithAlias}
+          WHERE ${balancesWhere} amount > 0
           GROUP BY owner
           ORDER BY token_count DESC, owner
           OFFSET ${query.offset} LIMIT ${query.limit}
         )
+      `);
+
+      const baseQuery = `
+        WITH ${withClauses.join(",")}
         SELECT 
-          nft_balances.owner,
-          SUM(nft_balances.amount) AS token_count,
+          ${balancesAlias}.owner,
+          SUM(${balancesAlias}.amount) AS token_count,
           COUNT(*) FILTER (WHERE tokens.floor_sell_value IS NOT NULL) AS on_sale_count,
           MIN(tokens.floor_sell_value) AS floor_sell_value,
           MAX(tokens.top_buy_value) AS top_buy_value,
-          SUM(nft_balances.amount) * MAX(tokens.top_buy_value) AS total_buy_value
-        FROM nft_balances
-        JOIN tokens ON nft_balances.contract = tokens.contract AND nft_balances.token_id = tokens.token_id
-        ${attributesJoin}
-        ${nftBalancesJoin}
-        WHERE ${tokensFilter + (tokensFilter && ` AND`)} nft_balances.owner IN (SELECT owner FROM x)
-        AND nft_balances.amount > 0
-        GROUP BY nft_balances.owner
-        ORDER BY token_count DESC, nft_balances.owner
+          SUM(${balancesAlias}.amount) * MAX(tokens.top_buy_value) AS total_buy_value
+        FROM ${balancesAlias}
+        JOIN tokens ON ${balancesAlias}.contract = tokens.contract AND ${balancesAlias}.token_id = tokens.token_id
+        ${attributesJoinWithAlias}
+        ${nftBalancesJoinWithAlias}
+        WHERE ${tokenFilterClause} ${balancesAlias}.owner IN (SELECT owner FROM x)
+        AND ${balancesAlias}.amount > 0
+        GROUP BY ${balancesAlias}.owner
+        ORDER BY token_count DESC, ${balancesAlias}.owner
       `;
 
       const result = await redb.manyOrNone(baseQuery, query).then((result) =>

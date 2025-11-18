@@ -6,6 +6,7 @@ import Joi from "joi";
 import { redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { formatEth, fromBuffer, toBuffer } from "@/common/utils";
+import { config } from "@/config/index";
 import { CollectionSets } from "@/models/collection-sets";
 import { Assets, ImageSize } from "@/utils/assets";
 import { Sources } from "@/models/sources";
@@ -170,14 +171,42 @@ export const getUserCollectionsV2Options: RouteOptions = {
     }
 
     try {
-      let baseQuery = `
-        WITH nbsample as (SELECT contract, token_id, "owner", amount
+      (params as any).user = toBuffer(params.user);
+      const withClauses: string[] = [];
+
+      if (config.focusCollectionAddress) {
+        (params as any).focusContract = toBuffer(config.focusCollectionAddress);
+        withClauses.push(`
+          focus_user_balances AS (
+            SELECT contract, token_id, owner, amount, last_token_appraisal_value
             FROM nft_balances
+            WHERE owner = $/user/
+              AND amount > 0
+            UNION ALL
+            SELECT $/focusContract/ AS contract,
+                   token_id,
+                   owner,
+                   1::NUMERIC AS amount,
+                   NULL::NUMERIC AS last_token_appraisal_value
+            FROM focus_owner_snapshots
+            WHERE contract = $/focusContract/
+              AND owner = $/user/
+          )
+        `);
+      }
+
+      const balancesSource = config.focusCollectionAddress ? "focus_user_balances" : "nft_balances";
+      withClauses.push(`
+        nbsample as (SELECT contract, token_id, "owner", amount
+            FROM ${balancesSource}
             WHERE "owner" = $/user/
               AND amount > 0
             ORDER BY last_token_appraisal_value DESC NULLS LAST
             LIMIT 5000
         )
+      `);
+
+      let baseQuery = `
         SELECT  collections.id,
                 collections.slug,
                 collections.name,
@@ -227,7 +256,6 @@ export const getUserCollectionsV2Options: RouteOptions = {
       `;
 
       // Filters
-      (params as any).user = toBuffer(params.user);
       const conditions: string[] = [];
 
       if (query.community) {
@@ -297,7 +325,7 @@ export const getUserCollectionsV2Options: RouteOptions = {
       }
 
       baseQuery = `
-        WITH x AS (${baseQuery})
+        WITH ${withClauses.join(",")}, x AS (${baseQuery})
         SELECT *
         FROM x
         ${topBidQuery}

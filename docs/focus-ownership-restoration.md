@@ -56,3 +56,23 @@ curl -X POST https://localhost:3000/admin/focus/snapshot-ownership \
 - [ ] Extend the fallback to the other ownership-heavy endpoints (`/tokens/{token}/owners`, `/collections/{id}/owners`, user portfolio, etc.).
 
 _Add notes + timestamps as we iterate._
+
+## Endpoint coverage checklist
+
+The goal is to make every user-facing read path consult the snapshot when (and only when) the canonical `nft_balances` row is missing in focus mode. Below is the current status for the endpoints we care about this week:
+
+| Endpoint | Uses `nft_balances` today? | Snapshot plan |
+| --- | --- | --- |
+| `/collections/v6` (`packages/indexer/src/api/endpoints/collections/get-collections/v6.ts`) | **No**. Endpoint only reads collection + token state (floor/top bid) and never inspects `nft_balances`. | No action required; snapshot data would not change the response. |
+| `/owners/v1` (`packages/indexer/src/api/endpoints/owners/get-owners/v1.ts:67-210`) | **Yes**. Ownership aggregates, attribute filters, and count/order by logic all rely on `nft_balances`. | ✅ Added `owner_nft_balances` CTE that unions live balances with `focus_owner_snapshots`. Every reference now points to the CTE alias so filters/joins include snapshot rows transparently. |
+| `/tokens/{token}/activity/v4` (`packages/indexer/src/api/endpoints/activities/get-token-activity/v4.ts`) | **No**. Activity stream lives in Elasticsearch; owners are just part of decoded fills/transfers. | No change; there’s nothing in this handler that checks balances. |
+| `/tokens/bootstrap/v1` (`packages/indexer/src/api/endpoints/tokens/get-tokens-bootstrap/v1.ts`) | **No**. It returns floor listing metadata only. | No change. |
+| `/tokens/details/v4` (`packages/indexer/src/api/endpoints/tokens/get-tokens-details/v4.ts:200-218`) | **Yes**. The owner field is a subquery on `nft_balances`. | ✅ Now uses `focus_get_owner(t.contract, t.token_id)` so detail pages see snapshot owners immediately. |
+| `/users/{user}/collections/v2` (`packages/indexer/src/api/endpoints/collections/get-user-collections/v2.ts:80-220`) | **Yes**. The `nbsample` CTE is `SELECT ... FROM nft_balances WHERE owner = $/user/ AND amount > 0`. | ✅ Introduced `focus_user_balances` CTE (when focus mode is on) that unions snapshot rows before the `nbsample` limit. All downstream joins stay the same, so collection ownership counts now include snapshot-only tokens. |
+| `/users/{user}/tokens/v7` (`packages/indexer/src/api/endpoints/tokens/get-user-tokens/v7.ts:530-720`) | **Yes**. The base dataset is `FROM nft_balances WHERE owner = $/user/ AND amount > 0`. | ✅ Added `focus_user_nft_balances` CTE plus alias-aware filters so the bootstrap subquery pulls snapshot rows before ordering/continuation (and `COALESCE` guards ensure pagination works even when snapshot rows have `NULL` timestamps). |
+
+Implementation notes:
+
+- We only have snapshot data for the configured focus contract, so all unions should be `WHERE contract = focus` to avoid accidentally duplicating wide-mode results.
+- Snapshot rows do not include `amount`; we assume ERC-721 semantics and treat each as amount `1`. That’s valid for focus deployments (the feature explicitly targets a single 721 collection). If we ever need ERC-1155 support we’ll extend the snapshot schema.
+- The `focus_get_owner` helper is ideal for “point lookups” (token detail, listing validations, etc.). Aggregate endpoints that group by owner/collection/token still need explicit unions because they depend on amount and/or the owner column in the select list.

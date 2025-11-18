@@ -48,7 +48,9 @@ export class FocusOwnerSnapshotJob extends AbstractRabbitMqJobHandler {
       const callOverrides = payload.blockNumber
         ? { blockTag: payload.blockNumber }
         : undefined;
-      const owner: string = await contract.ownerOf(payload.tokenId, callOverrides);
+      const owner: string = callOverrides
+        ? await contract.ownerOf(payload.tokenId, callOverrides)
+        : await contract.ownerOf(payload.tokenId);
 
       await FocusOwnerSnapshots.upsertMany([
         {

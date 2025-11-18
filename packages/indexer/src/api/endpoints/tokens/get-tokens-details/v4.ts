@@ -208,13 +208,7 @@ export const getTokensDetailsV4Options: RouteOptions = {
           "t"."last_sell_timestamp",
           COALESCE("t"."metadata_version"::TEXT, "t"."image_version"::TEXT) AS "image_version",
           ("c".metadata ->> 'imageUrl')::TEXT AS "collection_image",
-          (
-            SELECT "nb"."owner" FROM "nft_balances" "nb"
-            WHERE "nb"."contract" = "t"."contract"
-              AND "nb"."token_id" = "t"."token_id"
-              AND "nb"."amount" > 0
-            LIMIT 1
-          ) AS "owner",
+          COALESCE(nb_owner.owner, snap_owner.owner) AS "owner",
           (
             SELECT
               array_agg(json_build_object('key', "ta"."key",
@@ -246,6 +240,27 @@ export const getTokensDetailsV4Options: RouteOptions = {
         LEFT JOIN "orders" "ob" ON "t"."top_buy_id" = "ob"."id"
         JOIN "collections" "c" ON "t"."collection_id" = "c"."id"
         JOIN "contracts" "con" ON "t"."contract" = "con"."address"
+        LEFT JOIN LATERAL (
+          SELECT "nb"."owner"
+          FROM "nft_balances" "nb"
+          WHERE "nb"."contract" = "t"."contract"
+            AND "nb"."token_id" = "t"."token_id"
+            AND "nb"."amount" > 0
+          LIMIT 1
+        ) nb_owner ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT "fos"."owner"
+          FROM "focus_owner_snapshots" "fos"
+          WHERE "fos"."contract" = "t"."contract"
+            AND "fos"."token_id" = "t"."token_id"
+            AND NOT EXISTS (
+              SELECT 1 FROM "nft_balances" "nb2"
+              WHERE "nb2"."contract" = "fos"."contract"
+                AND "nb2"."token_id" = "fos"."token_id"
+                AND "nb2"."amount" > 0
+            )
+          LIMIT 1
+        ) snap_owner ON TRUE
       `;
 
       if (query.tokenSetId) {

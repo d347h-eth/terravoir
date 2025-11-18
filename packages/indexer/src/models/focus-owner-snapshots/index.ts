@@ -31,7 +31,10 @@ export class FocusOwnerSnapshots {
       source: p.source ?? "ownerOf",
     }));
 
-    const query = `${pgp.helpers.insert(rows, upsertColumns)}
+    const contractBuffer = toBuffer(payloads[0].contract);
+    const tokenIds = rows.map((row) => row.token_id);
+
+    const insertQuery = `${pgp.helpers.insert(rows, upsertColumns)}
       ON CONFLICT (contract, token_id) DO UPDATE SET
         owner = EXCLUDED.owner,
         block_number = EXCLUDED.block_number,
@@ -39,7 +42,27 @@ export class FocusOwnerSnapshots {
         retrieved_at = now()
     `;
 
-    await idb.none(query);
+    await idb.tx(async (tx) => {
+      await tx.none(insertQuery);
+
+      await tx.none(
+        `
+          DELETE FROM focus_owner_snapshots fos
+          WHERE fos.contract = $/contract/
+            AND fos.token_id = ANY($/tokenIds/)
+            AND EXISTS (
+              SELECT 1 FROM nft_balances nb
+              WHERE nb.contract = fos.contract
+                AND nb.token_id = fos.token_id
+                AND nb.amount > 0
+            )
+        `,
+        {
+          contract: contractBuffer,
+          tokenIds,
+        }
+      );
+    });
   }
 
   public static async deleteForTokens(contract: string, tokenIds: string[]) {

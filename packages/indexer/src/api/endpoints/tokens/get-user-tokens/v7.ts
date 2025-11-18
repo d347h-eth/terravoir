@@ -557,6 +557,40 @@ export const getUserTokensV7Options: RouteOptions = {
     }
 
     try {
+      const withClauses: string[] = [];
+      if (config.focusCollectionAddress) {
+        (params as any).focusContract = toBuffer(config.focusCollectionAddress);
+        withClauses.push(`
+          focus_user_nft_balances AS (
+            SELECT contract, token_id, owner, amount, acquired_at, last_token_appraisal_value
+            FROM nft_balances
+            WHERE owner = $/user/
+              AND amount > 0
+            UNION ALL
+            SELECT $/focusContract/ AS contract,
+                   token_id,
+                   owner,
+                   1::NUMERIC AS amount,
+                   NULL::TIMESTAMPTZ AS acquired_at,
+                   NULL::NUMERIC AS last_token_appraisal_value
+            FROM focus_owner_snapshots
+            WHERE contract = $/focusContract/
+              AND owner = $/user/
+          )
+        `);
+      }
+
+      const balancesSource = config.focusCollectionAddress ? "focus_user_nft_balances" : "nft_balances";
+      const filteredCollectionClauses = nftBalanceCollectionFilters.map((clause) =>
+        config.focusCollectionAddress ? clause.replace(/nft_balances/g, balancesSource) : clause
+      );
+      const nftBalanceFilterSql = filteredCollectionClauses.length
+        ? "(" + filteredCollectionClauses.join(" OR ") + ")"
+        : "TRUE";
+      const tokensFilterSql = tokensFilter.length
+        ? `(${balancesSource}.contract, ${balancesSource}.token_id) IN ($/tokensFilter:raw/)`
+        : "TRUE";
+
       let baseQuery = `
         SELECT b.contract, b.token_id, b.token_count, extract(epoch from b.acquired_at) AS acquired_at, b.last_token_appraisal_value,
                t.name, t.image, t.metadata AS token_metadata, t.media, t.rarity_rank, t.collection_id,
@@ -586,18 +620,10 @@ export const getUserTokensV7Options: RouteOptions = {
                ${selectAttributes}
         FROM (
             SELECT amount AS token_count, token_id, contract, acquired_at, last_token_appraisal_value
-            FROM nft_balances
+            FROM ${balancesSource}
             WHERE owner = $/user/
-              AND ${
-                nftBalanceCollectionFilters.length
-                  ? "(" + nftBalanceCollectionFilters.join(" OR ") + ")"
-                  : "TRUE"
-              }
-              AND ${
-                tokensFilter.length
-                  ? "(nft_balances.contract, nft_balances.token_id) IN ($/tokensFilter:raw/)"
-                  : "TRUE"
-              }
+              AND ${nftBalanceFilterSql}
+              AND ${tokensFilterSql}
               AND amount > 0
           ) AS b
           ${tokensJoin}
@@ -642,13 +668,13 @@ export const getUserTokensV7Options: RouteOptions = {
         query.sortDirection = query.sortDirection || "desc";
         if (query.sortBy === "acquiredAt") {
           conditions.push(
-            `(acquired_at, b.token_id) ${
+            `(COALESCE(b.acquired_at, to_timestamp(0)), b.token_id) ${
               query.sortDirection == "desc" ? "<" : ">"
             } (to_timestamp($/acquiredAtOrLastAppraisalValue/), $/tokenId/)`
           );
         } else {
           conditions.push(
-            `(last_token_appraisal_value, b.token_id) ${
+            `(COALESCE(last_token_appraisal_value, 0), b.token_id) ${
               query.sortDirection == "desc" ? "<" : ">"
             } ($/acquiredAtOrLastAppraisalValue/, $/tokenId/)`
           );
@@ -663,15 +689,22 @@ export const getUserTokensV7Options: RouteOptions = {
       if (query.sortBy === "acquiredAt") {
         baseQuery += `
         ORDER BY
-          b.acquired_at ${query.sortDirection}, b.token_id ${query.sortDirection}
+          COALESCE(b.acquired_at, to_timestamp(0)) ${query.sortDirection}, b.token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
       } else {
         baseQuery += `
         ORDER BY
-          last_token_appraisal_value ${query.sortDirection} NULLS LAST, b.token_id ${query.sortDirection}
+          COALESCE(last_token_appraisal_value, 0) ${query.sortDirection}, b.token_id ${query.sortDirection}
         LIMIT $/limit/
       `;
+      }
+
+      if (withClauses.length) {
+        baseQuery = `
+          WITH ${withClauses.join(",")}
+          ${baseQuery}
+        `;
       }
 
       const userTokens = await redb.manyOrNone(baseQuery, { ...query, ...params });
@@ -680,7 +713,7 @@ export const getUserTokensV7Options: RouteOptions = {
       if (userTokens.length === query.limit) {
         if (query.sortBy === "acquiredAt") {
           continuation = buildContinuation(
-            _.toInteger(userTokens[userTokens.length - 1].acquired_at) +
+            _.toInteger(userTokens[userTokens.length - 1].acquired_at ?? 0) +
               "_" +
               userTokens[userTokens.length - 1].collection_id +
               "_" +
@@ -688,7 +721,7 @@ export const getUserTokensV7Options: RouteOptions = {
           );
         } else {
           continuation = buildContinuation(
-            _.toInteger(userTokens[userTokens.length - 1].last_token_appraisal_value) +
+            _.toInteger(userTokens[userTokens.length - 1].last_token_appraisal_value ?? 0) +
               "_" +
               userTokens[userTokens.length - 1].collection_id +
               "_" +
