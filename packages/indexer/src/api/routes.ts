@@ -158,6 +158,12 @@ export const setupRoutes = (server: Server) => {
 
   server.route({
     method: "POST",
+    path: "/admin/focus/snapshot-ownership",
+    options: adminEndpoints.postFocusSnapshotOwnershipOptions,
+  });
+
+  server.route({
+    method: "POST",
     path: "/admin/resync-user-balance",
     options: adminEndpoints.postResyncUserCollectionBalance,
   });

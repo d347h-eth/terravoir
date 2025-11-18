@@ -46,6 +46,7 @@ import { NftTransferEventInfo } from "@/elasticsearch/indexes/activities/event-h
 import { config } from "@/config/index";
 import { fetchTransaction } from "@/events-sync/utils";
 import { saveTransactionsV2, Transaction as DbTransaction } from "@/models/transactions";
+import { FocusOwnerSnapshots } from "@/models/focus-owner-snapshots";
 
 // Semi-parsed and classified event
 export type EnhancedEvent = {
@@ -218,8 +219,11 @@ const filterOnChainDataByCollection = async (data: OnChainData, focusAddress: st
 };
 
 export const processOnChainData = async (data: OnChainData, backfill?: boolean) => {
+  let focusTransferTokenIds: string[] = [];
+
   if (config.focusCollectionAddress) {
     await filterOnChainDataByCollection(data, config.focusCollectionAddress);
+    focusTransferTokenIds = _.uniq(data.nftTransferEvents.map((event) => event.tokenId));
   }
   // Post-process fill events
 
@@ -274,6 +278,10 @@ export const processOnChainData = async (data: OnChainData, backfill?: boolean) 
     es.ftTransfers.addEvents(data.ftTransferEvents, Boolean(backfill)),
     es.nftTransfers.addEvents(data.nftTransferEvents, Boolean(backfill)),
   ]);
+
+  if (config.focusCollectionAddress && focusTransferTokenIds.length) {
+    await FocusOwnerSnapshots.deleteForTokens(config.focusCollectionAddress, focusTransferTokenIds);
+  }
 
   const endPersistOtherEvents = Date.now();
 

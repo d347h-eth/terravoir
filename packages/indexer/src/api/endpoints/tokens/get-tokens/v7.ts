@@ -884,15 +884,7 @@ export const getTokensV7Options: RouteOptions = {
           c.token_count,
           c.is_spam AS c_is_spam,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
-          (
-            SELECT
-              nb.owner
-            FROM nft_balances nb
-            WHERE nb.contract = t.contract
-              AND nb.token_id = t.token_id
-              AND nb.amount > 0
-            LIMIT 1
-          ) AS owner,
+          focus_get_owner(t.contract, t.token_id) AS owner,
           ${collectionFloorAskSelectQuery}
           ${selectAttributes}
           ${selectIncludeQuantity}

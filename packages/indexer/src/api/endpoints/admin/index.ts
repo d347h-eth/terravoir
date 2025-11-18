@@ -40,3 +40,4 @@ export * from "@/api/endpoints/admin/post-resync-api-key";
 export * from "@/api/endpoints/admin/post-resync-rate-limit-rule";
 export * from "@/api/endpoints/admin/post-set-token-indexing-method";
 export * from "@/api/endpoints/admin/post-calc-usd-price";
+export * from "@/api/endpoints/admin/post-focus-snapshot-ownership";

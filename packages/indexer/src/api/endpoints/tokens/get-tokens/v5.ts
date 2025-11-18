@@ -547,15 +547,7 @@ export const getTokensV5Options: RouteOptions = {
           (t.metadata ->> 'image_mime_type')::TEXT AS image_mime_type,
           (t.metadata ->> 'media_mime_type')::TEXT AS media_mime_type,
           (c.metadata ->> 'imageUrl')::TEXT AS collection_image,
-          (
-            SELECT
-              nb.owner
-            FROM nft_balances nb
-            WHERE nb.contract = t.contract
-              AND nb.token_id = t.token_id
-              AND nb.amount > 0
-            LIMIT 1
-          ) AS owner
+          focus_get_owner(t.contract, t.token_id) AS owner,
           ${selectAttributes}
           ${selectTopBid}
           ${selectIncludeQuantity}

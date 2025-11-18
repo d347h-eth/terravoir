@@ -198,6 +198,7 @@ import { pendingTxWebsocketEventsTriggerQueueJob } from "@/jobs/websocket-events
 import { fixTokensMissingCollectionJob } from "@/jobs/token-updates/fix-tokens-missing-collection";
 import { backfillTokensLastSaleJob } from "@/jobs/backfill/backfill-tokens-last-sale-job";
 import { backfillFillEventsOrderIsReservoirJob } from "@/jobs/backfill/backfill-fill-events-order-is-reservoir-job";
+import { focusOwnerSnapshotJob } from "@/jobs/focus/focus-owner-snapshot-job";
 import { backfillFillEventsMagicEdenFillSourceJob } from "@/jobs/backfill/backfill-fill-events-magiceden-fill-source";
 import { backfillContractsDeployedAtJob } from "@/jobs/backfill/backfill-contracts-deployed-at-job";
 import { backfillOrdersIsReservoirJob } from "@/jobs/backfill/backfill-orders-is-reservoir-job";
@@ -415,6 +416,7 @@ export class RabbitMqJobsConsumer {
       syncApiKeysJob,
       collectionCheckSpamJob,
       pendingTxsJob,
+      focusOwnerSnapshotJob,
       updateUserCollectionsSpamJob,
       updateNftBalancesSpamJob,
       pendingTxWebsocketEventsTriggerQueueJob,
