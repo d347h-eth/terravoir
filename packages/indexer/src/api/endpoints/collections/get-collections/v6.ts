@@ -388,6 +388,35 @@ export const getCollectionsV6Options: RouteOptions = {
       `;
     }
 
+    if (config.focusCollectionAddress) {
+      (query as any).focusContract = toBuffer(config.focusCollectionAddress);
+    }
+
+    const focusOwnerCountJoin = config.focusCollectionAddress
+      ? `
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*) AS focus_owner_count
+          FROM (
+            SELECT DISTINCT nb.owner
+            FROM nft_balances nb
+            WHERE nb.contract = collections.contract
+              AND nb.amount > 0
+            UNION
+            SELECT DISTINCT fos.owner
+            FROM focus_owner_snapshots fos
+            WHERE fos.contract = collections.contract
+              AND NOT EXISTS (
+                SELECT 1 FROM nft_balances nb2
+                WHERE nb2.contract = fos.contract
+                  AND nb2.token_id = fos.token_id
+                  AND nb2.amount > 0
+              )
+          ) owners
+          WHERE collections.contract = $/focusContract/
+        ) foc ON TRUE
+      `
+      : "";
+
     let baseQuery = `
         SELECT
           collections.id,
@@ -425,7 +454,15 @@ export const getCollectionsV6Options: RouteOptions = {
           collections.metadata_disabled,
           ${floorAskSelectQuery}
           collections.token_count,
-          collections.owner_count,
+          ${
+            config.focusCollectionAddress
+              ? `CASE
+                   WHEN collections.contract = $/focusContract/
+                   THEN COALESCE(foc.focus_owner_count, collections.owner_count)
+                   ELSE collections.owner_count
+                 END AS owner_count,`
+              : "collections.owner_count,"
+          }
           collections.created_at,
           collections.top_buy_id,
           collections.top_buy_maker,        
@@ -443,6 +480,7 @@ export const getCollectionsV6Options: RouteOptions = {
             SELECT kind FROM contracts WHERE contracts.address = collections.contract
           )  as contract_kind
         FROM collections
+        ${focusOwnerCountJoin}
       `;
 
     // Filtering
@@ -630,7 +668,18 @@ export const getCollectionsV6Options: RouteOptions = {
     // Any further joins might not preserve sorting
     baseQuery += orderBy.replace(/collections/g, "x");
 
+    const startTime = Date.now();
     const results = await redb.manyOrNone(baseQuery, query);
+    if (config.focusCollectionAddress) {
+      logger.debug(
+        "get-collections-v6",
+        JSON.stringify({
+          message: "focus owner count query",
+          duration: Date.now() - startTime,
+          focusContract: config.focusCollectionAddress,
+        })
+      );
+    }
 
     const sources = await Sources.getInstance();
     const collections = await Promise.all(
