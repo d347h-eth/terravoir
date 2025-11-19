@@ -49,7 +49,7 @@ export class FocusOwnerSnapshots {
         `
           DELETE FROM focus_owner_snapshots fos
           WHERE fos.contract = $/contract/
-            AND fos.token_id = ANY($/tokenIds/)
+            AND fos.token_id IN ($/tokenIds:csv/)
             AND EXISTS (
               SELECT 1 FROM nft_balances nb
               WHERE nb.contract = fos.contract
