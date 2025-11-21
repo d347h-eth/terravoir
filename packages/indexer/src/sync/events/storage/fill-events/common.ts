@@ -4,7 +4,13 @@ import { DbEvent, Event } from "@/events-sync/storage/fill-events";
 
 export const addEvents = async (events: Event[]) => {
   const fillValues: DbEvent[] = [];
+  const seenEvents = new Set<string>();
   for (const event of events) {
+    const uniqueKey = `${event.baseEventParams.txHash}:${event.baseEventParams.logIndex}:${event.baseEventParams.batchIndex}:${event.baseEventParams.blockHash}`;
+    if (seenEvents.has(uniqueKey)) {
+      continue;
+    }
+    seenEvents.add(uniqueKey);
     fillValues.push({
       address: toBuffer(event.baseEventParams.address),
       block: event.baseEventParams.block,
