@@ -339,8 +339,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
             ? Sdk.Common.Addresses.Native[config.chainId]
             : Sdk.Blur.Addresses.Beth[config.chainId];
 
+          const bethAddress = Sdk.Blur.Addresses.Beth[config.chainId]?.toLowerCase();
+          const normalizedCurrency =
+            currency?.toLowerCase() === bethAddress
+              ? Sdk.Common.Addresses.Native[config.chainId]
+              : currency;
+
           const priceData = await getUSDAndNativePrices(
-            currency,
+            normalizedCurrency,
             currencyPrice,
             baseEventParams.timestamp
           );
