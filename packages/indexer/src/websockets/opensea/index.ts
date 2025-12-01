@@ -326,9 +326,27 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
     }
 
     const protocol = (payload as any).protocol_address;
+    // Normalize odd payload shapes (eg. negative counter from OS stream)
+    const rawCounter = protocolData.parameters.counter;
+    const counter =
+      typeof rawCounter === "number"
+        ? rawCounter < 0
+          ? "0"
+          : `${rawCounter}`
+        : `${rawCounter}`;
+
+    const startTime =
+      typeof protocolData.parameters.startTime === "string"
+        ? Number(protocolData.parameters.startTime)
+        : protocolData.parameters.startTime;
+    const endTime =
+      typeof protocolData.parameters.endTime === "string"
+        ? Number(protocolData.parameters.endTime)
+        : protocolData.parameters.endTime;
+
     const orderComponents = {
-      endTime: protocolData.parameters.endTime,
-      startTime: protocolData.parameters.startTime,
+      endTime,
+      startTime,
       consideration: protocolData.parameters.consideration,
       offer: protocolData.parameters.offer,
       conduitKey: protocolData.parameters.conduitKey,
@@ -336,7 +354,7 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
       zone: protocolData.parameters.zone,
       zoneHash: protocolData.parameters.zoneHash,
       offerer: protocolData.parameters.offerer,
-      counter: `${protocolData.parameters.counter}`,
+      counter,
       orderType: protocolData.parameters.orderType,
       signature: protocolData.signature || undefined,
     };

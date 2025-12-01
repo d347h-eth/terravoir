@@ -208,7 +208,27 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const txTrace = await utils.fetchTransactionTrace(txHash);
         if (txTrace) {
           try {
-            const calls = searchForCalls(txTrace.calls, {
+            const callTree =
+              (txTrace as any).calls ||
+              (txTrace as any).result?.calls ||
+              ((txTrace as any).result && Array.isArray((txTrace as any).result)
+                ? (txTrace as any).result[0]?.calls
+                : []);
+
+            if (!callTree || !Array.isArray(callTree)) {
+              logger.info(
+                "pp-v2",
+                JSON.stringify({
+                  msg: "Could not get transaction trace",
+                  log,
+                  parsingError: true,
+                  reason: "no-calls-in-trace",
+                })
+              );
+              break;
+            }
+
+            const calls = searchForCalls(callTree, {
               to: exchangeAddress,
               type: "call",
               sigHashes: methods.map((c) => c.selector),
@@ -228,14 +248,14 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 stack: (error as any).stack,
               })
             );
-            throw new Error("Could not get transaction trace");
+            break;
           }
         } else {
           logger.info(
             "pp-v2",
             JSON.stringify({ msg: "Could not get transaction trace", log, isMissingTrace: true })
           );
-          throw new Error("Could not get transaction trace");
+          break;
         }
 
         const saleDetailsArray = [];

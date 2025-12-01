@@ -174,12 +174,35 @@ export async function extractRoyalties(
     })
   );
 
-  // The (sub)call where the current fill occured
-  let subcallToAnalyze = txTrace.calls;
+  const callTree =
+    (txTrace as any).calls ||
+    (txTrace as any).result?.calls ||
+    ((txTrace as any).result && Array.isArray((txTrace as any).result)
+      ? (txTrace as any).result[0]?.calls
+      : []);
 
-  const globalState = getStateChange(txTrace.calls);
+  if (!callTree || !Array.isArray(callTree)) {
+    logger.info(
+      "assign-royalties-to-fill-events",
+      JSON.stringify({
+        msg: "missing-calls-in-trace",
+        txHash,
+      })
+    );
+    return {
+      ...fillEvent,
+      royalties: fillEvent.royalties,
+      royaltyFeeBreakdown: fillEvent.royaltyFeeBreakdown,
+      marketplaceFeeBreakdown: fillEvent.marketplaceFeeBreakdown,
+    };
+  }
+
+  // The (sub)call where the current fill occured
+  let subcallToAnalyze = callTree;
+
+  const globalState = getStateChange(callTree);
   const routerCall = searchForCall(
-    txTrace.calls,
+    callTree,
     {
       // Reservoir Router
       sigHashes: [
@@ -208,13 +231,7 @@ export async function extractRoyalties(
         const moduleExecutions = executionsByModule[moduleAndSignHash];
         for (let index = 0; index < moduleExecutions.length; index++) {
           const execution = moduleExecutions[index];
-          const _executionCall = searchForCall(
-            txTrace.calls,
-            {
-              sigHashes: [execution.sighash],
-            },
-            index
-          );
+          const _executionCall = searchForCall(callTree, { sigHashes: [execution.sighash] }, index);
 
           if (_executionCall) {
             routerExecutionCalls.push({
@@ -233,7 +250,7 @@ export async function extractRoyalties(
     // for any (sub)calls to that particular exchange
     const exchangeCalls = [];
     for (let i = 0; i < 20; i++) {
-      const exchangeCall = searchForCall(txTrace.calls, { to: exchangeAddress }, i);
+      const exchangeCall = searchForCall(callTree, { to: exchangeAddress }, i);
       if (exchangeCall) {
         const payments = getPayments(exchangeCall);
         // Filter no payments call

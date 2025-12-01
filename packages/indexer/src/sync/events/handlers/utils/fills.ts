@@ -4,6 +4,7 @@ import { pgp, redb } from "@/common/db";
 import { logger } from "@/common/logger";
 import { fromBuffer } from "@/common/utils";
 import { getNetworkSettings } from "@/config/network";
+import { config } from "@/config/index";
 import * as es from "@/events-sync/storage";
 import { MintComment } from "@/events-sync/handlers/utils";
 
@@ -82,6 +83,12 @@ export const assignSourceToFillEvents = async (fillEvents: es.fills.Event[]) => 
 // by the collection volumes processes
 export const assignWashTradingScoreToFillEvents = async (fillEvents: es.fills.Event[]) => {
   const ns = getNetworkSettings();
+  if (
+    config.focusCollectionAddress &&
+    !ns.washTradingExcludedContracts.includes(config.focusCollectionAddress.toLowerCase())
+  ) {
+    ns.washTradingExcludedContracts.push(config.focusCollectionAddress.toLowerCase());
+  }
   try {
     const inverseFillEvents: { contract: Buffer; maker: Buffer; taker: Buffer }[] = [];
 
