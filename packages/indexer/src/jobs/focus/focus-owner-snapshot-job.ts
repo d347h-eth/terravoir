@@ -45,9 +45,7 @@ export class FocusOwnerSnapshotJob extends AbstractRabbitMqJobHandler {
     }
 
     try {
-      const callOverrides = payload.blockNumber
-        ? { blockTag: payload.blockNumber }
-        : undefined;
+      const callOverrides = payload.blockNumber ? { blockTag: payload.blockNumber } : undefined;
       const owner: string = callOverrides
         ? await contract.ownerOf(payload.tokenId, callOverrides)
         : await contract.ownerOf(payload.tokenId);
@@ -65,7 +63,10 @@ export class FocusOwnerSnapshotJob extends AbstractRabbitMqJobHandler {
       const message = error?.error?.message || error?.message || "";
 
       // ownerOf reverts for tokens that do not exist yet; log and continue without failing the job
-      if (message.toLowerCase().includes("nonexistent token") || message.toLowerCase().includes("invalid token id")) {
+      if (
+        message.toLowerCase().includes("nonexistent token") ||
+        message.toLowerCase().includes("invalid token id")
+      ) {
         await FocusOwnerSnapshots.deleteForTokens(config.focusCollectionAddress, [payload.tokenId]);
         logger.info(
           this.queueName,

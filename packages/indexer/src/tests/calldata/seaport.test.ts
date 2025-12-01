@@ -38,9 +38,7 @@ const chainId = Number(process.env.CHAIN_ID ?? 1);
 const padSourceToSalt = (salt: string, source?: string) => {
   const hash = (value?: string) => (value ? keccak256(toUtf8Bytes(value)).slice(2, 10) : "");
   const prefix =
-    source === "reservoir.tools"
-      ? hash(source)
-      : `${hash(source)}${hash("reservoir.tools")}`;
+    source === "reservoir.tools" ? hash(source) : `${hash(source)}${hash("reservoir.tools")}`;
   const saltHex = BigNumber.from(salt).toHexString().slice(2).padStart(64, "0");
   return BigNumber.from(`0x${prefix}${saltHex.slice(prefix.length)}`).toString();
 };

@@ -169,7 +169,9 @@ export const getOwnersV1Options: RouteOptions = {
     try {
       const balancesAlias = config.focusCollectionAddress ? "owner_nft_balances" : "nft_balances";
       const aliasify = (value: string) =>
-        config.focusCollectionAddress && value ? value.replace(/nft_balances/g, balancesAlias) : value;
+        config.focusCollectionAddress && value
+          ? value.replace(/nft_balances/g, balancesAlias)
+          : value;
 
       const attributesJoinWithAlias = aliasify(attributesJoin);
       const nftBalancesJoinWithAlias = aliasify(nftBalancesJoin);
@@ -194,9 +196,7 @@ export const getOwnersV1Options: RouteOptions = {
         `);
       }
 
-      const balancesWhere = nftBalancesFilterWithAlias
-        ? `${nftBalancesFilterWithAlias} AND `
-        : "";
+      const balancesWhere = nftBalancesFilterWithAlias ? `${nftBalancesFilterWithAlias} AND ` : "";
       const tokenFilterClause = tokensFilter ? `${tokensFilter} AND ` : "";
 
       withClauses.push(`

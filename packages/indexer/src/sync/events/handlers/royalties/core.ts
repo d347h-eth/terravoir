@@ -17,6 +17,7 @@ import { extractOrdersFromCalldata } from "@/events-sync/handlers/royalties/call
 import { supportedExchanges } from "@/events-sync/handlers/royalties/config";
 import { splitPayments } from "@/events-sync/handlers/royalties/payments";
 import { getFillEventsFromTxOnChain } from "@/events-sync/handlers/royalties/utils";
+import { logger } from "@/common/logger";
 import * as es from "@/events-sync/storage";
 import * as utils from "@/events-sync/utils";
 import { FeeRecipients } from "@/models/fee-recipients";
@@ -175,10 +176,10 @@ export async function extractRoyalties(
   );
 
   const callTree =
-    (txTrace as any).calls ||
-    (txTrace as any).result?.calls ||
+    ((txTrace as any).calls as CallTrace[]) ||
+    ((txTrace as any).result?.calls as CallTrace[]) ||
     ((txTrace as any).result && Array.isArray((txTrace as any).result)
-      ? (txTrace as any).result[0]?.calls
+      ? ((txTrace as any).result[0]?.calls as CallTrace[])
       : []);
 
   if (!callTree || !Array.isArray(callTree)) {
@@ -189,20 +190,15 @@ export async function extractRoyalties(
         txHash,
       })
     );
-    return {
-      ...fillEvent,
-      royalties: fillEvent.royalties,
-      royaltyFeeBreakdown: fillEvent.royaltyFeeBreakdown,
-      marketplaceFeeBreakdown: fillEvent.marketplaceFeeBreakdown,
-    };
+    return fillEvent;
   }
 
   // The (sub)call where the current fill occured
-  let subcallToAnalyze = callTree;
+  let subcallToAnalyze: CallTrace | CallTrace[] = callTree as CallTrace[];
 
-  const globalState = getStateChange(callTree);
+  const globalState = getStateChange(callTree as any);
   const routerCall = searchForCall(
-    callTree,
+    callTree as any,
     {
       // Reservoir Router
       sigHashes: [
@@ -231,7 +227,11 @@ export async function extractRoyalties(
         const moduleExecutions = executionsByModule[moduleAndSignHash];
         for (let index = 0; index < moduleExecutions.length; index++) {
           const execution = moduleExecutions[index];
-          const _executionCall = searchForCall(callTree, { sigHashes: [execution.sighash] }, index);
+          const _executionCall = searchForCall(
+            callTree as any,
+            { sigHashes: [execution.sighash] },
+            index
+          );
 
           if (_executionCall) {
             routerExecutionCalls.push({
@@ -250,7 +250,7 @@ export async function extractRoyalties(
     // for any (sub)calls to that particular exchange
     const exchangeCalls = [];
     for (let i = 0; i < 20; i++) {
-      const exchangeCall = searchForCall(callTree, { to: exchangeAddress }, i);
+      const exchangeCall = searchForCall(callTree as any, { to: exchangeAddress }, i);
       if (exchangeCall) {
         const payments = getPayments(exchangeCall);
         // Filter no payments call
@@ -305,7 +305,7 @@ export async function extractRoyalties(
   if (routerCall) {
     // Pin-point to the parent module call
     for (const { call } of routerExecutionCalls) {
-      const checkResult = checkCallIsInParent(call, subcallToAnalyze);
+      const checkResult = checkCallIsInParent(call, subcallToAnalyze as CallTrace);
       if (checkResult.isMatch) {
         parentCallTransfers = checkResult.parentTransfers;
         subcallToAnalyze = call;
@@ -314,7 +314,9 @@ export async function extractRoyalties(
   }
 
   // Extract the payments from the (sub)call we just found
-  const paymentsToAnalyze = getPayments(subcallToAnalyze);
+  const paymentsToAnalyze = Array.isArray(subcallToAnalyze)
+    ? subcallToAnalyze.flatMap((c) => getPayments(c))
+    : getPayments(subcallToAnalyze as CallTrace);
 
   // Get the total number of sales in the current (sub)call
   const nftTransfers = paymentsToAnalyze.reduce((total, item) => {
@@ -327,7 +329,9 @@ export async function extractRoyalties(
 
   // Extract the orders from calldata when there have multiple fill events
   const parsedOrders =
-    fillEvents.length > 1 ? await extractOrdersFromCalldata(subcallToAnalyze.input) : [];
+    fillEvents.length > 1 && !Array.isArray(subcallToAnalyze)
+      ? await extractOrdersFromCalldata((subcallToAnalyze as CallTrace).input)
+      : [];
 
   const linkedOrder = parsedOrders.find(
     (c) => c.contract === fillEvent.contract && c.tokenId === fillEvent.tokenId
@@ -445,7 +449,7 @@ export async function extractRoyalties(
   });
 
   // Iterate through all of the state changes of the (sub)call associated to the current fill event
-  const state = getStateChange(subcallToAnalyze);
+  const state = getStateChange(subcallToAnalyze as CallTrace);
 
   const ETH = Sdk.Common.Addresses.Native[config.chainId];
   const BETH = Sdk.Blur.Addresses.Beth[config.chainId];

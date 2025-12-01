@@ -39,11 +39,8 @@ export class OpenseaListingsProcessJob extends AbstractRabbitMqJobHandler {
   }
 
   public async addToQueue(infos: OpenseaListingsProcessJobPayload[], delayInSeconds = 0) {
-    await this.sendBatch(
-      infos.map((info) => ({ payload: info, delay: delayInSeconds * 1000 }))
-    );
+    await this.sendBatch(infos.map((info) => ({ payload: info, delay: delayInSeconds * 1000 })));
   }
 }
 
 export const openseaListingsProcessJob = new OpenseaListingsProcessJob();
-

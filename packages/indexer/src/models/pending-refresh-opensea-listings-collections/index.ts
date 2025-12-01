@@ -10,10 +10,7 @@ export type PendingRefreshOpenseaListingsCollection = {
 export class PendingRefreshOpenseaListingsCollections {
   public key = "pending-refresh-opensea-listings-collections";
 
-  public async add(
-    items: PendingRefreshOpenseaListingsCollection[],
-    prioritized = false
-  ) {
+  public async add(items: PendingRefreshOpenseaListingsCollection[], prioritized = false) {
     if (prioritized) {
       return await redis.lpush(
         this.key,
@@ -35,4 +32,3 @@ export class PendingRefreshOpenseaListingsCollections {
     return [];
   }
 }
-

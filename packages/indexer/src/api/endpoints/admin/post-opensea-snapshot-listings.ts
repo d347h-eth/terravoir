@@ -37,7 +37,10 @@ export const postOpenseaSnapshotListingsV1Options: RouteOptions = {
       `postOpenseaSnapshotListings${version.toUpperCase()}Response`
     ),
     failAction: (_request, _h, error) => {
-      logger.error(`post-opensea-snapshot-listings-${version}-handler`, `Wrong response schema: ${error}`);
+      logger.error(
+        `post-opensea-snapshot-listings-${version}-handler`,
+        `Wrong response schema: ${error}`
+      );
       throw error;
     },
   },

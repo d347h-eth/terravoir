@@ -126,7 +126,10 @@ export const save = async (
         }
 
         if (
-          !(await isOpen(order.params.conduitKey, Sdk.SeaportV16.Addresses.Exchange[config.chainId]))
+          !(await isOpen(
+            order.params.conduitKey,
+            Sdk.SeaportV16.Addresses.Exchange[config.chainId]
+          ))
         ) {
           return results.push({
             id,

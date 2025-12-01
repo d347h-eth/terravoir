@@ -210,28 +210,19 @@ export const tryGetCurrencyDetails = async (
   try {
     name = await contract.name();
   } catch (error) {
-    logger.debug(
-      "currencies",
-      `Failed to fetch name for ${currencyAddress}: ${error}`
-    );
+    logger.debug("currencies", `Failed to fetch name for ${currencyAddress}: ${error}`);
   }
 
   try {
     symbol = await contract.symbol();
   } catch (error) {
-    logger.debug(
-      "currencies",
-      `Failed to fetch symbol for ${currencyAddress}: ${error}`
-    );
+    logger.debug("currencies", `Failed to fetch symbol for ${currencyAddress}: ${error}`);
   }
 
   try {
     decimals = await contract.decimals();
   } catch (error) {
-    logger.debug(
-      "currencies",
-      `Failed to fetch decimals for ${currencyAddress}: ${error}`
-    );
+    logger.debug("currencies", `Failed to fetch decimals for ${currencyAddress}: ${error}`);
   }
 
   try {
@@ -240,16 +231,15 @@ export const tryGetCurrencyDetails = async (
       totalSupply = Number(totalSupplyBigNumber.toString());
     }
   } catch (error) {
-    logger.debug(
-      "currencies",
-      `Failed to fetch totalSupply for ${currencyAddress}: ${error}`
-    );
+    logger.debug("currencies", `Failed to fetch totalSupply for ${currencyAddress}: ${error}`);
   }
 
   // If we couldn't get the essential fields, throw an error to trigger retry or fallback
   if (!symbol || decimals === undefined) {
     throw new Error(
-      `Contract ${currencyAddress} is missing required ERC20 fields (symbol: ${symbol !== undefined}, decimals: ${decimals !== undefined})`
+      `Contract ${currencyAddress} is missing required ERC20 fields (symbol: ${
+        symbol !== undefined
+      }, decimals: ${decimals !== undefined})`
     );
   }
 

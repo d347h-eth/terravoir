@@ -580,7 +580,9 @@ export const getUserTokensV7Options: RouteOptions = {
         `);
       }
 
-      const balancesSource = config.focusCollectionAddress ? "focus_user_nft_balances" : "nft_balances";
+      const balancesSource = config.focusCollectionAddress
+        ? "focus_user_nft_balances"
+        : "nft_balances";
       const filteredCollectionClauses = nftBalanceCollectionFilters.map((clause) =>
         config.focusCollectionAddress ? clause.replace(/nft_balances/g, balancesSource) : clause
       );

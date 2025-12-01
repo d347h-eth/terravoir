@@ -97,94 +97,94 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
       ],
       async (event) => {
         try {
-        const chainName = (event.payload as any).chain;
+          const chainName = (event.payload as any).chain;
 
-        lastReceivedEventTimestamp = now();
+          lastReceivedEventTimestamp = now();
 
-        if (chainName && getOpenseaChainName() != chainName) {
-          return;
-        }
-
-        if (await isDuplicateEvent(event)) {
-          return;
-        }
-
-        const eventType = event.event_type as EventType;
-        const openSeaOrderParams = await handleEvent(eventType, event.payload);
-
-        logger.info(
-          "opensea-websocket",
-          JSON.stringify({
-            topic: "opensea-websocket-metrics",
-            message: "Processing event.",
-            network,
-            event,
-            isSupported: !!openSeaOrderParams,
-            chainName,
-            hasChainName: !!chainName,
-          })
-        );
-
-        if (openSeaOrderParams) {
-          // Focus guard: if a focus collection is configured, only accept
-          // OpenSea websocket orders whose target contract matches focus.
-          if (config.focusCollectionAddress) {
-            const focus = config.focusCollectionAddress.toLowerCase();
-            const target = openSeaOrderParams.contract?.toLowerCase();
-            if (target && target !== focus) {
-              logger.info(
-                "opensea-websocket",
-                JSON.stringify({
-                  topic: "focus-gate",
-                  message: "Skipping non-focus OpenSea order",
-                  focus,
-                  target,
-                  hash: openSeaOrderParams.hash,
-                  kind: openSeaOrderParams.kind,
-                  side: openSeaOrderParams.side,
-                  slug: openSeaOrderParams.collectionSlug,
-                })
-              );
-              return;
-            }
+          if (chainName && getOpenseaChainName() != chainName) {
+            return;
           }
-          const protocolData = parseProtocolData(event.payload);
 
-          let orderInfo: GenericOrderInfo;
-          if (protocolData) {
-            orderInfo = {
-              kind: protocolData.kind,
-              info: {
-                orderParams: protocolData.order.params,
-                metadata: {
-                  originatedAt: event.sent_at,
+          if (await isDuplicateEvent(event)) {
+            return;
+          }
+
+          const eventType = event.event_type as EventType;
+          const openSeaOrderParams = await handleEvent(eventType, event.payload);
+
+          logger.info(
+            "opensea-websocket",
+            JSON.stringify({
+              topic: "opensea-websocket-metrics",
+              message: "Processing event.",
+              network,
+              event,
+              isSupported: !!openSeaOrderParams,
+              chainName,
+              hasChainName: !!chainName,
+            })
+          );
+
+          if (openSeaOrderParams) {
+            // Focus guard: if a focus collection is configured, only accept
+            // OpenSea websocket orders whose target contract matches focus.
+            if (config.focusCollectionAddress) {
+              const focus = config.focusCollectionAddress.toLowerCase();
+              const target = openSeaOrderParams.contract?.toLowerCase();
+              if (target && target !== focus) {
+                logger.info(
+                  "opensea-websocket",
+                  JSON.stringify({
+                    topic: "focus-gate",
+                    message: "Skipping non-focus OpenSea order",
+                    focus,
+                    target,
+                    hash: openSeaOrderParams.hash,
+                    kind: openSeaOrderParams.kind,
+                    side: openSeaOrderParams.side,
+                    slug: openSeaOrderParams.collectionSlug,
+                  })
+                );
+                return;
+              }
+            }
+            const protocolData = parseProtocolData(event.payload);
+
+            let orderInfo: GenericOrderInfo;
+            if (protocolData) {
+              orderInfo = {
+                kind: protocolData.kind,
+                info: {
+                  orderParams: protocolData.order.params,
+                  metadata: {
+                    originatedAt: event.sent_at,
+                  },
+                  isOpenSea: true,
+                  openSeaOrderParams,
                 },
-                isOpenSea: true,
-                openSeaOrderParams,
-              },
-              validateBidValue: true,
-              ingestMethod: "websocket",
-            } as GenericOrderInfo;
+                validateBidValue: true,
+                ingestMethod: "websocket",
+              } as GenericOrderInfo;
 
-            if (eventType === EventType.ITEM_LISTED) {
-              await openseaListingsJob.addToQueue([orderInfo]);
-            } else {
-              bidsEvents.push(orderInfo);
+              if (eventType === EventType.ITEM_LISTED) {
+                await openseaListingsJob.addToQueue([orderInfo]);
+              } else {
+                bidsEvents.push(orderInfo);
 
-              if (bidsEvents.length >= maxBidsSize) {
-                const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
+                if (bidsEvents.length >= maxBidsSize) {
+                  const orderInfoBatch = bidsEvents.splice(0, bidsEvents.length);
 
-                await openseaBidsQueueJob.addToQueue(orderInfoBatch);
+                  await openseaBidsQueueJob.addToQueue(orderInfoBatch);
+                }
               }
             }
           }
+        } catch (error) {
+          logger.error(
+            "opensea-websocket",
+            `network=${network}, event=${JSON.stringify(event)}, error=${error}`
+          );
         }
-      } catch (error) {
-        logger.error(
-          "opensea-websocket",
-          `network=${network}, event=${JSON.stringify(event)}, error=${error}`
-        );
-      }
       }
     );
     // Also subscribe to item metadata updates on the same topic
@@ -194,59 +194,59 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
           return;
         }
 
-      if (await isDuplicateEvent(event)) {
-        return;
-      }
-
-      const [, contract, tokenId] = event.payload.item.nft_id.split("/");
-
-      if (config.focusCollectionAddress) {
-        const focus = config.focusCollectionAddress.toLowerCase();
-        if (contract.toLowerCase() !== focus) {
+        if (await isDuplicateEvent(event)) {
           return;
         }
-      }
 
-      // Check: token doesn't exist
-      const tokenExists = await ridb.oneOrNone(
-        `SELECT 1 FROM tokens WHERE tokens.contract = $/contract/ AND tokens.token_id=$/tokenId/`,
-        {
-          contract: toBuffer(contract),
-          tokenId,
+        const [, contract, tokenId] = event.payload.item.nft_id.split("/");
+
+        if (config.focusCollectionAddress) {
+          const focus = config.focusCollectionAddress.toLowerCase();
+          if (contract.toLowerCase() !== focus) {
+            return;
+          }
         }
-      );
 
-      if (!tokenExists) {
-        return;
-      }
-
-      const lockExists = await doesLockExist(`refresh-new-token-metadata:${contract}:${tokenId}`);
-
-      if (!lockExists) {
-        const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
-
-        await metadataIndexFetchJob.addToQueue([
+        // Check: token doesn't exist
+        const tokenExists = await ridb.oneOrNone(
+          `SELECT 1 FROM tokens WHERE tokens.contract = $/contract/ AND tokens.token_id=$/tokenId/`,
           {
-            kind: "single-token",
-            data: {
-              method: config.metadataIndexingMethod,
-              contract,
-              tokenId,
-              collection: collection?.id || contract,
+            contract: toBuffer(contract),
+            tokenId,
+          }
+        );
+
+        if (!tokenExists) {
+          return;
+        }
+
+        const lockExists = await doesLockExist(`refresh-new-token-metadata:${contract}:${tokenId}`);
+
+        if (!lockExists) {
+          const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
+
+          await metadataIndexFetchJob.addToQueue([
+            {
+              kind: "single-token",
+              data: {
+                method: config.metadataIndexingMethod,
+                contract,
+                tokenId,
+                collection: collection?.id || contract,
+              },
+              context: "opensea-websocket",
             },
-            context: "opensea-websocket",
-          },
-        ]);
+          ]);
+        }
+      } catch (error) {
+        logger.error(
+          "opensea-websocket-item-metadata-update-event",
+          JSON.stringify({
+            message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
+            error,
+          })
+        );
       }
-    } catch (error) {
-      logger.error(
-        "opensea-websocket-item-metadata-update-event",
-        JSON.stringify({
-          message: `Error. network=${network}, event=${JSON.stringify(event)}, error=${error}`,
-          error,
-        })
-      );
-    }
     });
   })();
 }
@@ -329,11 +329,7 @@ export const parseProtocolData = (payload: unknown): ProtocolData | undefined =>
     // Normalize odd payload shapes (eg. negative counter from OS stream)
     const rawCounter = protocolData.parameters.counter;
     const counter =
-      typeof rawCounter === "number"
-        ? rawCounter < 0
-          ? "0"
-          : `${rawCounter}`
-        : `${rawCounter}`;
+      typeof rawCounter === "number" ? (rawCounter < 0 ? "0" : `${rawCounter}`) : `${rawCounter}`;
 
     const startTime =
       typeof protocolData.parameters.startTime === "string"

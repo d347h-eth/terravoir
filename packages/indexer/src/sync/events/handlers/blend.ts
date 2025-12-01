@@ -117,12 +117,21 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           executeCallTrace = rootTrace;
           logger.info(
             "blend-handler",
-            JSON.stringify({ topic: "found-at-root", txHash, matchedVia: rootTo === exchangeAddress ? "to" : "from" })
+            JSON.stringify({
+              topic: "found-at-root",
+              txHash,
+              matchedVia: rootTo === exchangeAddress ? "to" : "from",
+            })
           );
         }
 
         // If not found at root, search within nested calls
-        if (!executeCallTrace && rootTrace.calls && Array.isArray(rootTrace.calls) && rootTrace.calls.length > 0) {
+        if (
+          !executeCallTrace &&
+          rootTrace.calls &&
+          Array.isArray(rootTrace.calls) &&
+          rootTrace.calls.length > 0
+        ) {
           try {
             executeCallTrace = searchForCall(
               rootTrace.calls,
@@ -179,7 +188,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (!matchMethod) {
           logger.info(
             "blend-handler",
-            JSON.stringify({ topic: "no-matchMethod", txHash, selectors: methods.map((m)=>m.name) })
+            JSON.stringify({
+              topic: "no-matchMethod",
+              txHash,
+              selectors: methods.map((m) => m.name),
+            })
           );
           break;
         }

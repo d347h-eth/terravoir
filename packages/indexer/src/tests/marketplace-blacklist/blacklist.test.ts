@@ -21,7 +21,9 @@ jest.mock("@/config/index", () => ({
 }));
 
 jest.mock("@/common/redis", () => {
-  const { createRedisClientMock, createRedlockMock } = jest.requireActual("../utils/redis-mock") as typeof import("../utils/redis-mock");
+  const { createRedisClientMock, createRedlockMock } = jest.requireActual(
+    "../utils/redis-mock"
+  ) as typeof import("../utils/redis-mock");
   const mockRedis = createRedisClientMock;
   return {
     redis: mockRedis(),

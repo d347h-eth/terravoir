@@ -10,10 +10,7 @@ import { openseaListingsProcessJob } from "@/jobs/opensea-listings/opensea-listi
 // Run an OpenSea listings snapshot for the focus collection every 20 minutes.
 // Only enable when background work is on, collection metadata indexing uses OpenSea,
 // and a focus collection is configured.
-if (
-  config.doBackgroundWork &&
-  config.focusCollectionAddress
-) {
+if (config.doBackgroundWork && config.focusCollectionAddress) {
   cron.schedule("*/20 * * * *", async () => {
     if (!config.focusCollectionAddress) {
       return;
@@ -21,7 +18,10 @@ if (
     const lockTtlMs = 20 * 60 * 1000 - 5000; // hold lock for the window minus a small buffer
     try {
       await redlock
-        .acquire([`opensea-snapshot-listings-cron-lock:${config.focusCollectionAddress}`], lockTtlMs)
+        .acquire(
+          [`opensea-snapshot-listings-cron-lock:${config.focusCollectionAddress}`],
+          lockTtlMs
+        )
         .then(async () => {
           try {
             const row = await redb.oneOrNone(
@@ -51,7 +51,12 @@ if (
 
             logger.info(
               "opensea-snapshot-cron",
-              JSON.stringify({ message: "enqueued", contract: config.focusCollectionAddress, collectionId: row.id, slug: row.slug })
+              JSON.stringify({
+                message: "enqueued",
+                contract: config.focusCollectionAddress,
+                collectionId: row.id,
+                slug: row.slug,
+              })
             );
           } catch (err) {
             logger.error(

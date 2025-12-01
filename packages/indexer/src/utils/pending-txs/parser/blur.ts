@@ -74,9 +74,7 @@ export const parseTokensFromCalldata = async (calldata: string): Promise<Pending
 
     if (methodName && args) {
       if (
-        ["buyToBorrow", "buyToBorrowV2", "buyToBorrowETH", "buyToBorrowV2ETH"].includes(
-          methodName
-        )
+        ["buyToBorrow", "buyToBorrowV2", "buyToBorrowETH", "buyToBorrowV2ETH"].includes(methodName)
       ) {
         const { offer, execution } = args;
 

@@ -57,7 +57,10 @@ export const getNftPoolDetails = async (address: string, skipOnChainCheck = fals
         );
         if ((await factory.vault(vaultId)).toLowerCase() === address) {
           // In focus mode, avoid persisting non-focus pools
-          if (config.focusCollectionAddress && nft !== config.focusCollectionAddress.toLowerCase()) {
+          if (
+            config.focusCollectionAddress &&
+            nft !== config.focusCollectionAddress.toLowerCase()
+          ) {
             return { address, nft, vaultId: Number(vaultId.toString()) };
           }
 

@@ -149,4 +149,3 @@ export class OpenseaListingsFetchJob extends AbstractRabbitMqJobHandler {
 }
 
 export const openseaListingsFetchJob = new OpenseaListingsFetchJob();
-

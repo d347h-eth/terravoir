@@ -154,13 +154,14 @@ export const offChainCheck = async (
       if (canRecheck) {
         try {
           let confirmed = false;
-          
+
           // first try to hit the cache
           const cacheKeyBase = `focus-own:${config.chainId}:${info.contract.toLowerCase()}:${String(
             info.tokenId
           )}:${order.params.offerer.toLowerCase()}:${info.tokenKind}`;
           const qtyStr = bn(checkQuantity).toString();
-          const cacheKey = info.tokenKind === "erc1155" ? `${cacheKeyBase}:${qtyStr}` : cacheKeyBase;
+          const cacheKey =
+            info.tokenKind === "erc1155" ? `${cacheKeyBase}:${qtyStr}` : cacheKeyBase;
 
           const cached = await redis.get(cacheKey);
           if (cached === "1" || cached === "0") {

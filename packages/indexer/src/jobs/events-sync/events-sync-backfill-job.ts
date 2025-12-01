@@ -75,7 +75,7 @@ export default class EventsSyncBackfillJob extends AbstractRabbitMqJobHandler {
       logger.error(
         this.queueName,
         JSON.stringify({
-          message: `Events for [${fromBlock} - ${toBlock}] failed to sync` ,
+          message: `Events for [${fromBlock} - ${toBlock}] failed to sync`,
           errorMessage,
           errorCode,
         })

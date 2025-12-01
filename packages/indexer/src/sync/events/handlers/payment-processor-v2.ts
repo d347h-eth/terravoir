@@ -228,7 +228,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
               break;
             }
 
-            const calls = searchForCalls(callTree, {
+            const calls = searchForCalls(callTree as any, {
               to: exchangeAddress,
               type: "call",
               sigHashes: methods.map((c) => c.selector),

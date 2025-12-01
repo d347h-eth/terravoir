@@ -28,10 +28,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
           // Skip any failed attempts to get the trace
           // Emit diagnostic so we can see why fills are missing
           // (e.g., RPC missing debug tracer)
-          logger.info(
-            "blur-v2-handler",
-            JSON.stringify({ topic: "no-trace", txHash })
-          );
+          logger.info("blur-v2-handler", JSON.stringify({ topic: "no-trace", txHash }));
           break;
         }
 
@@ -39,7 +36,9 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         const exchangeAddrSdk = Sdk.BlurV2.Addresses.Exchange[config.chainId]?.toLowerCase();
         const fallbackMainnet = "0xb2ecfe4e4d61f8790bbb9de2d1259b9e2410cea5";
         const resolvedExchangeAddress =
-          exchangeAddrEnv || exchangeAddrSdk || (config.chainId === 1 ? fallbackMainnet : undefined);
+          exchangeAddrEnv ||
+          exchangeAddrSdk ||
+          (config.chainId === 1 ? fallbackMainnet : undefined);
 
         if (!resolvedExchangeAddress) {
           // Cannot resolve exchange address for this chain; skip
@@ -189,7 +188,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         }
 
         // If not found at root, search within nested calls
-        if (!executeCallTrace && rootTrace.calls && Array.isArray(rootTrace.calls) && rootTrace.calls.length > 0) {
+        if (
+          !executeCallTrace &&
+          rootTrace.calls &&
+          Array.isArray(rootTrace.calls) &&
+          rootTrace.calls.length > 0
+        ) {
           try {
             executeCallTrace = searchForCall(
               rootTrace.calls,
@@ -210,7 +214,12 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         }
 
         // Fallback: also try the Delegate contract in nested calls
-        if (!executeCallTrace && rootTrace.calls && Array.isArray(rootTrace.calls) && rootTrace.calls.length > 0) {
+        if (
+          !executeCallTrace &&
+          rootTrace.calls &&
+          Array.isArray(rootTrace.calls) &&
+          rootTrace.calls.length > 0
+        ) {
           try {
             const delegateAddrEnv = process.env.BLUR_V2_DELEGATE_ADDRESS?.toLowerCase();
             const delegateAddrSdk = Sdk.BlurV2.Addresses.Delegate[config.chainId]?.toLowerCase();
@@ -270,7 +279,11 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
         if (!matchMethod) {
           logger.info(
             "blur-v2-handler",
-            JSON.stringify({ topic: "no-matchMethod", txHash, selectors: methods.map((m)=>m.name) })
+            JSON.stringify({
+              topic: "no-matchMethod",
+              txHash,
+              selectors: methods.map((m) => m.name),
+            })
           );
           break;
         }
@@ -441,7 +454,7 @@ export const handleEvents = async (events: EnhancedEvent[], onChainData: OnChain
                 txHash,
                 collection,
                 tokenId,
-                subKinds: events.filter((e)=>e.kind==="blur-v2").map((e)=>e.subKind)
+                subKinds: events.filter((e) => e.kind === "blur-v2").map((e) => e.subKind),
               })
             );
           }

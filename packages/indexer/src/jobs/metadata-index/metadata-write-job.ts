@@ -73,7 +73,8 @@ export default class MetadataIndexWriteJob extends AbstractRabbitMqJobHandler {
     if (config.focusCollectionAddress) {
       const focus = config.focusCollectionAddress.toLowerCase();
       const isFocus =
-        payload.contract?.toLowerCase?.() === focus || payload.collection?.toLowerCase?.().startsWith(focus);
+        payload.contract?.toLowerCase?.() === focus ||
+        payload.collection?.toLowerCase?.().startsWith(focus);
       if (!isFocus) {
         return;
       }

@@ -125,7 +125,10 @@ export const save = async (
         }
 
         if (
-          !(await isOpen(order.params.conduitKey, Sdk.SeaportV15.Addresses.Exchange[config.chainId]))
+          !(await isOpen(
+            order.params.conduitKey,
+            Sdk.SeaportV15.Addresses.Exchange[config.chainId]
+          ))
         ) {
           return results.push({
             id,
@@ -335,7 +338,7 @@ export const save = async (
           permitIndex: metadata.permitIndex,
           onChainBalanceRecheck: true,
         });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (error: any) {
         // Keep any orders that can potentially get valid in the future
         if (error.message === "no-balance-no-approval") {
