@@ -21,7 +21,16 @@ export const handleEvent = (payload: TraitOfferEventPayload): OpenseaOrderParams
     payloadWithList.trait_criteria_list &&
     payloadWithList.trait_criteria_list.length
   ) {
-    throw new Error("Trait offer payload has both trait_criteria and trait_criteria_list");
+    const single = payloadWithList.trait_criteria;
+    const list = payloadWithList.trait_criteria_list;
+    const listIsSingleMatch =
+      list.length === 1 &&
+      list[0]?.trait_type === single.trait_type &&
+      list[0]?.trait_name === single.trait_name;
+
+    if (!listIsSingleMatch) {
+      throw new Error("Trait offer payload has conflicting trait_criteria and trait_criteria_list");
+    }
   }
 
   const rawCriteria = payloadWithList.trait_criteria
