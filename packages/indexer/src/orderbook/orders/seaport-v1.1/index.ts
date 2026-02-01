@@ -56,6 +56,7 @@ export declare type OpenseaOrderParams = {
   taker?: string;
   isDynamic?: boolean;
   collectionSlug: string;
+  attributes?: { key: string; value: string }[];
   attributeKey?: string;
   attributeValue?: string;
 };
@@ -290,20 +291,56 @@ export const save = async (
           }
 
           case "token-list": {
+            const rawAttributes =
+              openSeaOrderParams.attributes?.length
+                ? openSeaOrderParams.attributes
+                : openSeaOrderParams.attributeKey && openSeaOrderParams.attributeValue
+                ? [
+                    {
+                      key: openSeaOrderParams.attributeKey,
+                      value: openSeaOrderParams.attributeValue,
+                    },
+                  ]
+                : [];
+
+            const dedupedAttributes: { key: string; value: string }[] = [];
+            const seen = new Set<string>();
+            for (const attribute of rawAttributes) {
+              if (!attribute?.key || !attribute?.value) {
+                continue;
+              }
+              const signature = `${attribute.key}:${attribute.value}`;
+              if (!seen.has(signature)) {
+                seen.add(signature);
+                dedupedAttributes.push({ key: attribute.key, value: attribute.value });
+              }
+            }
+
+            if (!dedupedAttributes.length) {
+              break;
+            }
+
             const schema = {
               kind: "attribute",
               data: {
                 collection: collection.id,
-                attributes: [
-                  {
-                    key: openSeaOrderParams.attributeKey,
-                    value: openSeaOrderParams.attributeValue,
-                  },
-                ],
+                attributes: dedupedAttributes,
               },
             };
 
             schemaHash = generateSchemaHash(schema);
+
+            const values: { [key: string]: string | number } = {
+              collection: collection.id,
+              attributesCount: dedupedAttributes.length,
+            };
+            const attributeConditions = dedupedAttributes.map((attribute, index) => {
+              const key = `key${index}`;
+              const value = `value${index}`;
+              values[key] = attribute.key;
+              values[value] = attribute.value;
+              return `(token_attributes.key = $/${key}/ AND token_attributes.value = $/${value}/)`;
+            });
 
             // Fetch all tokens matching the attributes
             const tokens = await redb.manyOrNone(
@@ -311,15 +348,12 @@ export const save = async (
                 SELECT token_attributes.token_id
                 FROM token_attributes
                 WHERE token_attributes.collection_id = $/collection/
-                  AND token_attributes.key = $/key/
-                  AND token_attributes.value = $/value/
+                  AND (${attributeConditions.join(" OR ")})
+                GROUP BY token_attributes.token_id
+                HAVING COUNT(DISTINCT (token_attributes.key, token_attributes.value)) = $/attributesCount/
                 ORDER BY token_attributes.token_id
               `,
-              {
-                collection: collection.id,
-                key: openSeaOrderParams.attributeKey,
-                value: openSeaOrderParams.attributeValue,
-              }
+              values
             );
 
             if (tokens.length) {

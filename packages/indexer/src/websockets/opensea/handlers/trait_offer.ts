@@ -11,7 +11,30 @@ export const handleEvent = (payload: TraitOfferEventPayload): OpenseaOrderParams
 
   const contract = (payload.asset_contract_criteria as { address: string }).address;
 
-  const traitCriteria = payload.trait_criteria as { trait_type: string; trait_name: string };
+  const rawCriteria = payload.trait_criteria
+    ? [payload.trait_criteria]
+    : payload.trait_criteria_list ?? [];
+
+  const attributes: { key: string; value: string }[] = [];
+  const seen = new Set<string>();
+  for (const entry of rawCriteria) {
+    if (!entry?.trait_type || !entry?.trait_name) {
+      continue;
+    }
+    const signature = `${entry.trait_type}:${entry.trait_name}`;
+    if (!seen.has(signature)) {
+      seen.add(signature);
+      attributes.push({ key: entry.trait_type, value: entry.trait_name });
+    }
+  }
+
+  if (!attributes.length) {
+    return null;
+  }
+
+  attributes.sort((a, b) =>
+    a.key === b.key ? a.value.localeCompare(b.value) : a.key.localeCompare(b.key)
+  );
 
   return {
     kind: "token-list",
@@ -25,7 +48,8 @@ export const handleEvent = (payload: TraitOfferEventPayload): OpenseaOrderParams
     contract,
     offerer: payload.maker.address,
     collectionSlug: payload.collection.slug,
-    attributeKey: traitCriteria.trait_type,
-    attributeValue: traitCriteria.trait_name,
+    attributes,
+    attributeKey: attributes.length === 1 ? attributes[0].key : undefined,
+    attributeValue: attributes.length === 1 ? attributes[0].value : undefined,
   };
 };

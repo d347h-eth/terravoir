@@ -15,12 +15,10 @@ export type TokenSet = {
         data: {
           collection: string;
           isNonFlagged?: boolean;
-          attributes: [
-            {
-              key: string;
-              value: string;
-            }
-          ];
+          attributes: {
+            key: string;
+            value: string;
+          }[];
         };
       }
     | {
@@ -95,14 +93,39 @@ const isValid = async (tokenSet: TokenSet) => {
       let tokenIds: string[] | undefined;
 
       if (tokenSet.schema.kind === "attribute") {
-        // TODO: Add support for multiple attributes
-        if (tokenSet.schema.data.attributes.length !== 1) {
+        const rawAttributes = tokenSet.schema.data.attributes ?? [];
+        const dedupedAttributes: { key: string; value: string }[] = [];
+        const seen = new Set<string>();
+        for (const attribute of rawAttributes) {
+          if (!attribute?.key || !attribute?.value) {
+            continue;
+          }
+          const signature = `${attribute.key}:${attribute.value}`;
+          if (!seen.has(signature)) {
+            seen.add(signature);
+            dedupedAttributes.push({ key: attribute.key, value: attribute.value });
+          }
+        }
+
+        if (!dedupedAttributes.length) {
           return false;
         }
 
         const excludeFlaggedTokens = tokenSet.schema.data.isNonFlagged
           ? "AND (tokens.is_flagged = 0 OR tokens.is_flagged IS NULL)"
           : "";
+
+        const values: { [key: string]: string | number } = {
+          collection: tokenSet.schema.data.collection,
+          attributesCount: dedupedAttributes.length,
+        };
+        const attributeConditions = dedupedAttributes.map((attribute, index) => {
+          const key = `key${index}`;
+          const value = `value${index}`;
+          values[key] = attribute.key;
+          values[value] = attribute.value;
+          return `(attribute_keys.key = $/${key}/ AND attributes.value = $/${value}/)`;
+        });
 
         tokens = await redb.manyOrNone(
           `
@@ -117,15 +140,13 @@ const isValid = async (tokenSet: TokenSet) => {
               ON token_attributes.contract = tokens.contract
               AND token_attributes.token_id = tokens.token_id
             WHERE attribute_keys.collection_id = $/collection/
-              AND attribute_keys.key = $/key/
-              AND attributes.value = $/value/
+              AND (${attributeConditions.join(" OR ")})
               ${excludeFlaggedTokens}
+            GROUP BY token_attributes.token_id
+            HAVING COUNT(DISTINCT (attribute_keys.key, attributes.value)) = $/attributesCount/
+            ORDER BY token_attributes.token_id
           `,
-          {
-            collection: tokenSet.schema!.data.collection,
-            key: tokenSet.schema!.data.attributes[0].key,
-            value: tokenSet.schema!.data.attributes[0].value,
-          }
+          values
         );
 
         if (!tokens || !tokens.length) {
@@ -254,28 +275,30 @@ export const save = async (tokenSets: TokenSet[]): Promise<TokenSet[]> => {
       let attributeId: string | null = null;
       let collectionId: string | null = null;
       if (schema && schema.kind === "attribute") {
-        const attributeResult = await redb.oneOrNone(
-          `
-            SELECT
-              attributes.id
-            FROM attributes
-            JOIN attribute_keys
-              ON attributes.attribute_key_id = attribute_keys.id
-            WHERE attribute_keys.collection_id = $/collection/
-              AND attribute_keys.key = $/key/
-              AND attributes.value = $/value/
-          `,
-          {
-            collection: schema.data.collection,
-            key: schema.data.attributes[0].key,
-            value: schema.data.attributes[0].value,
+        if (schema.data.attributes.length === 1) {
+          const attributeResult = await redb.oneOrNone(
+            `
+              SELECT
+                attributes.id
+              FROM attributes
+              JOIN attribute_keys
+                ON attributes.attribute_key_id = attribute_keys.id
+              WHERE attribute_keys.collection_id = $/collection/
+                AND attribute_keys.key = $/key/
+                AND attributes.value = $/value/
+            `,
+            {
+              collection: schema.data.collection,
+              key: schema.data.attributes[0].key,
+              value: schema.data.attributes[0].value,
+            }
+          );
+          if (!attributeResult) {
+            continue;
           }
-        );
-        if (!attributeResult) {
-          continue;
-        }
 
-        attributeId = attributeResult.id;
+          attributeId = attributeResult.id;
+        }
       } else if (
         schema &&
         (schema.kind === "collection" || schema.kind === "collection-non-flagged")

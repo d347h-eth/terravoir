@@ -23,6 +23,7 @@ export declare type OpenseaOrderParams = {
   taker?: string;
   isDynamic?: boolean;
   collectionSlug: string;
+  attributes?: { key: string; value: string }[];
   attributeKey?: string;
   attributeValue?: string;
 };

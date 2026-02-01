@@ -16,12 +16,10 @@ export type TSTAttribute = {
   kind: "attribute";
   data: {
     collection: string;
-    attributes: [
-      {
-        key: string;
-        value: string;
-      }
-    ];
+    attributes: {
+      key: string;
+      value: string;
+    }[];
   };
 };
 
