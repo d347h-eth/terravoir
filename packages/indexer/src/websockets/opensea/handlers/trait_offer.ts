@@ -11,9 +11,22 @@ export const handleEvent = (payload: TraitOfferEventPayload): OpenseaOrderParams
 
   const contract = (payload.asset_contract_criteria as { address: string }).address;
 
-  const rawCriteria = payload.trait_criteria
-    ? [payload.trait_criteria]
-    : payload.trait_criteria_list ?? [];
+  const payloadWithList = payload as TraitOfferEventPayload & {
+    trait_criteria?: { trait_type?: string; trait_name?: string };
+    trait_criteria_list?: { trait_type?: string; trait_name?: string }[];
+  };
+
+  if (
+    payloadWithList.trait_criteria &&
+    payloadWithList.trait_criteria_list &&
+    payloadWithList.trait_criteria_list.length
+  ) {
+    throw new Error("Trait offer payload has both trait_criteria and trait_criteria_list");
+  }
+
+  const rawCriteria = payloadWithList.trait_criteria
+    ? [payloadWithList.trait_criteria]
+    : payloadWithList.trait_criteria_list ?? [];
 
   const attributes: { key: string; value: string }[] = [];
   const seen = new Set<string>();
