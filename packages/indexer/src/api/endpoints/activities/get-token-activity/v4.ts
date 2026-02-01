@@ -3,6 +3,7 @@
 import _ from "lodash";
 import { Request, RouteOptions } from "@hapi/hapi";
 import Joi from "joi";
+import Boom from "@hapi/boom";
 
 import { logger } from "@/common/logger";
 import { formatEth, regex } from "@/common/utils";
@@ -128,6 +129,16 @@ export const getTokenActivityV4Options: RouteOptions = {
   handler: async (request: Request) => {
     const params = request.params as any;
     const query = request.query as any;
+
+    if (!ActivitiesIndex.isEnabled()) {
+      logger.warn(
+        `get-token-activity-${version}-handler`,
+        "Token activity endpoint is disabled (Elasticsearch activities is not enabled)"
+      );
+      throw Boom.badRequest(
+        "Token activity endpoint is not enabled on this deployment (requires Elasticsearch activities)"
+      );
+    }
 
     if (query.types && !_.isArray(query.types)) {
       query.types = [query.types];

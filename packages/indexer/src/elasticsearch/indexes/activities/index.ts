@@ -28,6 +28,15 @@ import { config } from "@/config/index";
 
 const INDEX_NAME = `${getChainName()}.${config.elasticsearchActivitiesIndexName || "activities"}`;
 
+export class ElasticsearchActivitiesNotEnabledError extends Error {
+  constructor() {
+    super("Elasticsearch activities is not enabled");
+    this.name = "ElasticsearchActivitiesNotEnabledError";
+  }
+}
+
+export const isEnabled = () => Boolean(elasticsearch);
+
 export const save = async (
   activities: ActivityDocument[],
   upsert = true,
@@ -943,6 +952,10 @@ export const search = async (
   debug = false,
   indexName?: string
 ): Promise<{ activities: ActivityDocument[]; continuation: string | null }> => {
+  if (!isEnabled()) {
+    throw new ElasticsearchActivitiesNotEnabledError();
+  }
+
   const esQuery = {};
   params.sortDirection = params.sortDirection ?? "desc";
 
@@ -1155,6 +1168,10 @@ export const search = async (
 
     return { activities, continuation };
   } catch (error) {
+    if (error instanceof ElasticsearchActivitiesNotEnabledError) {
+      throw error;
+    }
+
     logger.error(
       "elasticsearch-activities",
       JSON.stringify({
@@ -1183,6 +1200,10 @@ export const _search = async (
   debug = false,
   indexName?: string
 ): Promise<SearchResponse<ActivityDocument, Record<string, AggregationsAggregate>>> => {
+  if (!isEnabled()) {
+    throw new ElasticsearchActivitiesNotEnabledError();
+  }
+
   try {
     params.track_total_hits = params.track_total_hits ?? false;
 

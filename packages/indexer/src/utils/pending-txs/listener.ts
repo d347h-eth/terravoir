@@ -136,7 +136,7 @@ export const startListener = () => {
 
     logger.info(COMPONENT, `lastMessageTimestamp=${lastMessageTimestamp}, now=${Date.now()}`);
     if (lastMessageTimestamp <= Date.now() - FIVE_MINUTES) {
-      logger.error(COMPONENT, "Stale pending-tx websocket, reinitiating");
+      logger.debug(COMPONENT, "Stale pending-tx websocket, reinitiating");
 
       listener.close();
       startNewListener();
