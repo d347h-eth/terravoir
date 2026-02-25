@@ -154,6 +154,10 @@ export class IndexerOrdersHandler extends KafkaEventHandler {
 
   async handleSellOrder(payload: any): Promise<void> {
     try {
+      if (config.disableRealtimeMetadataRefresh) {
+        return;
+      }
+
       if (
         payload.after.fillability_status === "fillable" &&
         payload.after.approval_status === "approved"

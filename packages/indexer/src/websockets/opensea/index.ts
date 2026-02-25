@@ -190,6 +190,10 @@ if (config.doWebsocketWork && config.openSeaApiKey) {
     // Also subscribe to item metadata updates on the same topic
     client.onItemMetadataUpdated(topicSlug, async (event) => {
       try {
+        if (config.disableRealtimeMetadataRefresh) {
+          return;
+        }
+
         if (getOpenseaChainName() != event.payload.item.chain.name) {
           return;
         }

@@ -52,6 +52,10 @@ export class ProcessAskEventJob extends AbstractRabbitMqJobHandler {
         );
 
         if (orderExists) {
+          if (config.disableRealtimeMetadataRefresh) {
+            return;
+          }
+
           const collection = await Collections.getByContractAndTokenId(contract, Number(tokenId));
 
           await metadataIndexFetchJob.addToQueue([
