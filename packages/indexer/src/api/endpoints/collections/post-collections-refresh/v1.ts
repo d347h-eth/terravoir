@@ -41,7 +41,7 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
   },
   validate: {
     headers: Joi.object({
-      "x-api-key": Joi.string(),
+      "x-api-key": Joi.string().required(),
     }).options({ allowUnknown: true }),
     payload: Joi.object({
       collection: Joi.string()
@@ -78,6 +78,9 @@ export const postCollectionsRefreshV1Options: RouteOptions = {
     // How many minutes between each refresh
     const refreshCoolDownMin = 60 * 4;
     const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
+    if (_.isNull(apiKey)) {
+      throw Boom.unauthorized("Invalid API key");
+    }
     const refreshTokens = Number(apiKey?.tier) >= 2;
 
     let overrideCoolDown = false;

@@ -74,6 +74,7 @@ export const postExecuteResultsV1: RouteOptions = {
                 url: `/tokens/refresh/v1`,
                 headers: {
                   "Content-Type": "application/json",
+                  "x-api-key": (request.headers["x-api-key"] as string) ?? "",
                 },
                 payload: {
                   token,

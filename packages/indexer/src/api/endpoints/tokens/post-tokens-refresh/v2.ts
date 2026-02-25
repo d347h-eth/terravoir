@@ -1,3 +1,4 @@
+import * as Boom from "@hapi/boom";
 import { Request, RouteOptions } from "@hapi/hapi";
 import { isAfter, add, formatISO9075 } from "date-fns";
 import _ from "lodash";
@@ -29,6 +30,9 @@ export const postTokensRefreshV2Options: RouteOptions = {
     },
   },
   validate: {
+    headers: Joi.object({
+      "x-api-key": Joi.string().required(),
+    }).options({ allowUnknown: true }),
     payload: Joi.object({
       tokens: Joi.alternatives()
         .try(
@@ -75,6 +79,9 @@ export const postTokensRefreshV2Options: RouteOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
     const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
+    if (_.isNull(apiKey)) {
+      throw Boom.unauthorized("Invalid API key");
+    }
 
     const tokenRefreshResult = [];
 
@@ -128,16 +135,6 @@ export const postTokensRefreshV2Options: RouteOptions = {
         // Non-liquidity checks (not cheap)
 
         if (payload.overrideCoolDown) {
-          const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-          if (_.isNull(apiKey)) {
-            tokenRefreshResult.push({
-              token: payloadToken,
-              result: `Invalid API key`,
-              isError: true,
-            });
-            continue;
-          }
-
           if (!apiKey.permissions?.override_collection_refresh_cool_down) {
             tokenRefreshResult.push({ token: payloadToken, result: `Not allowed`, isError: true });
             continue;

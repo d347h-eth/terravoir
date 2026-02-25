@@ -31,6 +31,9 @@ export const postTokensRefreshV1Options: RouteOptions = {
     },
   },
   validate: {
+    headers: Joi.object({
+      "x-api-key": Joi.string().required(),
+    }).options({ allowUnknown: true }),
     payload: Joi.object({
       token: Joi.string()
         .lowercase()
@@ -62,6 +65,9 @@ export const postTokensRefreshV1Options: RouteOptions = {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const payload = request.payload as any;
     const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
+    if (_.isNull(apiKey)) {
+      throw Boom.unauthorized("Invalid API key");
+    }
 
     // How many minutes to enforce between each refresh
     const refreshCoolDownMin = 60;
@@ -99,11 +105,6 @@ export const postTokensRefreshV1Options: RouteOptions = {
     // Non-liquidity checks (not cheap)
 
     if (payload.overrideCoolDown) {
-      const apiKey = await ApiKeyManager.getApiKey(request.headers["x-api-key"]);
-      if (_.isNull(apiKey)) {
-        throw Boom.unauthorized("Invalid API key");
-      }
-
       if (!apiKey.permissions?.override_collection_refresh_cool_down) {
         throw Boom.unauthorized("Not allowed");
       }
